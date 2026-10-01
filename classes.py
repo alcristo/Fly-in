@@ -1,3 +1,101 @@
+from pydantic import BaseModel, Field, model_validator, ValidationError
+from pygame import Color, error
+import sys
+
+
+class ParsingError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+class Hub(BaseModel):
+    id: str = Field(...)
+    coords: tuple[int, int] = Field(...)
+    color: str = Field(...)
+    zone: str = Field(default="normal")
+    capacity: int = Field(default=1, gt=0)
+    # self._neighbours: list[Hub] = []
+    
+
+    @model_validator(mode="after")
+    def validate_name(self):
+        if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
+            raise ValidationError(f"invalid name: {self.id}")
+        return self
+
+    @model_validator(mode="after")
+    def validate_color(self):
+        if self.color.lower() == "rainbow":
+            return self
+        try:
+            Color(self.color)
+        except error:
+            raise ValidationError(f"invalid color name: {self.color}")
+        return self
+
+    @model_validator(mode="after")
+    def validate_zone(self):
+        if self.zone.lower() not in (
+            "normal", "restricted", "priority", "blocked"
+        ):
+                raise ValidationError(f"invalid zone type: {self.zone}")
+        return self
+
+
+class Connection(BaseModel):
+    id: str = Field(...)
+    hub1: str = Field(...)
+    hub2: str = Field(...)
+    capacity: int = Field(gt=0, default=1)
+
+    @model_validator(mode="after")
+    def validate_hubs(self):
+        if self.hub1.lower() == self.hub2.lower():
+            raise ValidationError(f"{self.id} connects {self.hub1} with itself")
+        return self
+
+
+"""
+class Connection:
+    def __init__(self, info: dict):
+        self._connects = (info["hub1"], info["hub2"])
+        if self._connects[0] == self._connects[1]:
+            raise ValueError("Connection joins hub with itself")
+        attr = info.get("attr", "").split(' ')
+        data = [i.split('=') for i in attr if len(i) == 2]
+        if len(data) != 0:
+            self._metadata = {i[0]: i[1] for i in data}
+            self._max_link_capacity = self._metadata.get("max_link_capacity", 1)
+            assert self._max_link_capacity > 0
+        self._transiting: int = 0
+        hubs: None | tuple[Hub, Hub] = None
+
+    def get_hubs(self, hubs: list[Hub]) -> None:
+        for hub in hubs:
+            if hub._id == self._connects[0]:
+                hub1 = hub
+                break
+        else:
+            raise AttributeError("Hub 1 not found")
+        for hub in hubs:
+            if hub._id == self._connects[1]:
+                hub2 = hub
+                break
+        else:
+            raise AttributeError("Hub 2 not found")
+        self._hubs = (hub1, hub2)
+
+    @property
+    def transiting(self) -> int:
+        return self._transiting
+
+    @transiting.setter
+    def transiting(self, drones: int) -> None:
+        self._transiting = drones
+"""
+
+
+"""
 class Hub:
     def __init__(self, info: dict):
         self._id = info["id"]
@@ -68,15 +166,6 @@ class Hub:
         self._occupation = drones
 
 
-hub = {
-    "coords":  (0, 0),
-    "color": "red",
-    "zone": "normal",
-    "capacity": 1,
-    "neighbours": ["hub1", "hub2", "hub3"]
-}
-
-
 class Start(Hub):
     def __init__(self, info: dict) -> None:
         super().self.__init__(info)
@@ -91,8 +180,8 @@ class Goal(Hub):
         assert self._id.find("goal") >= 0
         self._max_drones = -1
         self._zone = "normal"
-
-
+"""
+"""
 class Connection:
     def __init__(self, info: dict):
         self._connects = (info["hub1"], info["hub2"])
@@ -129,6 +218,120 @@ class Connection:
     @transiting.setter
     def transiting(self, drones: int) -> None:
         self._transiting = drones
+"""
+
+class Parser:
+
+    @staticmethod
+    def parse(map: str) -> None:
+        try:
+            with open(map) as f:
+                txt = f.read().strip()
+                lines = txt.split("\n")
+                while "" in lines:
+                    lines.remove("")
+                valid = [i.split(':') for i in lines if i.find('#') != 0]
+        except FileNotFoundError as e:
+            print(e)
+            sys.exit()
+        except PermissionError as e:
+            print(e)
+            sys.exit()
+
+        try:
+            for i in valid:
+                if i[0].lower() == "nb_drones":
+                    break
+            else:
+                raise ParsingError("Number of drones is not defined")
+            for i in valid:
+                if i[0].find("hub") >= 0:
+                    break
+            else:
+                raise ParsingError("No hubs in the map")
+            for i in valid:
+                if i[0].lower() == "connection":
+                    break
+            else:
+                raise ParsingError("No connections in the map")
+        except ParsingError as e:
+            print(e)
+            sys.exit()
+
+        hubs, connections = [], []
+        try:
+            for i in valid:
+                if i[0].lower() == "nb_drones":
+                    nb = int(i[1])
+                    assert nb > 0 and nb < 1000
+                elif i[0].lower().find("hub") >= 0:
+                    lst = i[1].strip().split(' ')
+                    hub = {
+                        "id": lst[0],
+                        "x": int(lst[1]),
+                        "y": int(lst[2]),
+                        "attr": ' '.join(lst[3:]).lstrip('[').rstrip(']')
+                    }
+                    if hub["attr"] == "":
+                        hub.pop("attr")
+                    if hub["id"].find("-") >= 0:
+                        raise ParsingError(f"Invalid name for zone: {hub['id']}")
+                    hubs.append(hub)
+                elif i[0].lower() == "connection":
+                    lst = i[1].strip().split(' ')
+                    hubs = lst[0].strip().split('-')
+                    if hubs[0] == hubs[1]:
+                        raise ParsingError(f"Connection with itself: {hubs[0]}")
+                    connection = {
+                        "hub1": hubs[0],
+                        "hub2": hubs[1],
+                        "attr": ' '.join(lst[1:]).lstrip('[').rstrip(']')
+                    }
+                    ids = [i.get("id") for i in hubs]
+                    if connection["hub1"] not in ids:
+                        raise ParsingError(f"Hub {connection['hub1']} not defined")
+                    if connection["hub2"] not in ids:
+                        raise ParsingError(f"Hub {connection['hub2']} not defined")
+                    if connection in connections or {
+                        "hub1": connection["hub2"], "hub2": connection["hub1"]
+                    } in connections:
+                        raise ParsingError(f"Duplicated connection: {connection}")
+                    if connection["attr"] == "":
+                        connection.pop("attr")
+                    connections.append(connection)
+            for i in hubs:
+                if i["id"].find("start") >= 0:
+                    break
+            else:
+                raise ParsingError("No start hub")
+            for i in hubs:
+                if i["id"].find("goal") >= 0:
+                    break
+            else:
+                raise ParsingError("No goal hub")
+            for i in hubs:
+                for j in hubs[hubs.index(i):]:
+                    if i["id"] == j["id"] and i is not j:
+                        raise ValueError(f"Hubs with identical name: {i['id']}")
+                    if i["id"] == j["id"] and i is not j:
+                        raise ValueError(f"Hubs with identical name: {i['id']}")
+        except ValueError as e:
+            print(e)
+        except IndexError:
+            print("Invalid variable separation")
+        except AssertionError:
+            print("Invalid number of drones")
+        except ParsingError as e:
+            print(e)
+
+
+hub = {
+    "coords":  (0, 0),
+    "color": "red",
+    "zone": "normal",
+    "capacity": 1,
+    "neighbours": ["hub1", "hub2", "hub3"]
+}
 
 
 connection = {
