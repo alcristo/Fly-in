@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, ValidationError
 from pygame import Color, error
-import sys
+# import sys
 
 
 class ParsingError(Exception):
@@ -15,7 +15,6 @@ class Hub(BaseModel):
     zone: str = Field(default="normal")
     capacity: int = Field(default=1, gt=0)
     # self._neighbours: list[Hub] = []
-    
 
     @model_validator(mode="after")
     def validate_name(self):
@@ -38,7 +37,7 @@ class Hub(BaseModel):
         if self.zone.lower() not in (
             "normal", "restricted", "priority", "blocked"
         ):
-                raise ValidationError(f"invalid zone type: {self.zone}")
+            raise ValidationError(f"invalid zone type: {self.zone}")
         return self
 
 
@@ -51,8 +50,37 @@ class Connection(BaseModel):
     @model_validator(mode="after")
     def validate_hubs(self):
         if self.hub1.lower() == self.hub2.lower():
-            raise ValidationError(f"{self.id} connects {self.hub1} with itself")
+            raise ValidationError(
+                f"{self.id} connects {self.hub1} with itself"
+            )
         return self
+
+
+class Map(BaseModel):
+    hubs: dict[tuple[int, int], Hub] = {}
+    connections: list[Connection] = []
+
+    def add_hub(self, new: Hub) -> None:
+        ids = [hub.id for hub in self.hubs.values()]
+        if new.id in ids:
+            raise ValidationError(f"hub {new.id} already in map")
+        if self.hubs.get(new.coords):
+            raise AttributeError(
+                f"({new.coords[0]},{new.coords[1]}) already occupied by"
+                f"{self.hubs.get(new.coords)}"
+            )
+        self.hubs.update({new.coords: new})
+
+    def add_connection(self, new: Connection) -> None:
+        ids = [way.id for way in self.connections]
+        if new.id in ids:
+            raise ValidationError(f"connection {new.id} already in map")
+        hub_ids = [hub.id for hub in self.hubs.values()]
+        if new.hub1 not in hub_ids:
+            raise AttributeError(f"hub not in map: {new.hub1}")
+        if new.hub2 not in hub_ids:
+            raise AttributeError(f"hub not in map: {new.hub2}")
+        self.connections.append(new)
 
 
 """
@@ -92,10 +120,7 @@ class Connection:
     @transiting.setter
     def transiting(self, drones: int) -> None:
         self._transiting = drones
-"""
 
-
-"""
 class Hub:
     def __init__(self, info: dict):
         self._id = info["id"]
@@ -131,7 +156,7 @@ class Hub:
         neighs = [hub._id for hub in self._neighbours]
         if hub not in neighs:
             raise ValueError(f"{hub} not neighboring {self._id}")
-        
+
 
     @property
     def g(self) -> int:
@@ -180,8 +205,7 @@ class Goal(Hub):
         assert self._id.find("goal") >= 0
         self._max_drones = -1
         self._zone = "normal"
-"""
-"""
+
 class Connection:
     def __init__(self, info: dict):
         self._connects = (info["hub1"], info["hub2"])
@@ -219,7 +243,7 @@ class Connection:
     def transiting(self, drones: int) -> None:
         self._transiting = drones
 """
-
+"""
 class Parser:
 
     @staticmethod
@@ -430,3 +454,4 @@ class Simulation:
         self._map = map
         self._drones = [Drone]
         self._start = self._map._hubs
+"""
