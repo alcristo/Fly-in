@@ -30,14 +30,14 @@ def rainbow() -> Callable[[float], pygame.Color]:
 
 
 def main() -> None:
-    """# pygame setup
+    # pygame setup
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
     pygame.display.set_caption("Fly-in")
     clock = pygame.time.Clock()
     my_font = pygame.font.Font(None, 64)
     running = True
-    hub = pygame.image.load("graphics/hub.png")
+    # hub = pygame.image.load("graphics/hub.png")
     ground = pygame.Surface((800,600))
     ground.fill("purple")
     next_color = rainbow()
@@ -68,8 +68,9 @@ def main() -> None:
     
         clock.tick(30) # limits FPS to 30
     
-    pygame.quit()"""
+    pygame.quit()
 
+"""
     pygame.init()
 
     WIDTH, HEIGHT = 1000, 700
@@ -197,6 +198,7 @@ def main() -> None:
         clock.tick(60)
     
     pygame.quit()
+"""
 
 
 if __name__ == "__main__":

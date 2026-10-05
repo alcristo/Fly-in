@@ -1,6 +1,7 @@
+from .pygame_test import rainbow
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pygame
-# import sys
+import sys
 
 
 class ParsingError(Exception):
@@ -50,6 +51,12 @@ class Connection(BaseModel):
     capacity: int = Field(gt=0, default=1)
 
     @model_validator(mode="after")
+    def validate_name(self):
+        if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
+            raise ValidationError(f"invalid name: {self.id}")
+        return self
+
+    @model_validator(mode="after")
     def validate_hubs(self):
         if self.hub1.lower() == self.hub2.lower():
             raise ValidationError(
@@ -91,7 +98,7 @@ class Map(BaseModel):
         self.connections.append(new)
 
     def get_hub(self, name: str) -> Hub:
-        for coords, hub in self.hubs:
+        for hub in self.hubs.values():
             if hub.id == name:
                 return (hub)
         else:
@@ -100,31 +107,39 @@ class Map(BaseModel):
 
 class Screen(pygame.Surface):
     def __init__(self, w: int, h: int, level: Map):
-        super().self.__init__(w, h)
+        super().__init__((w, h))
         self.map: Map = level
         self.cam_x: float = 0
         self.cam_y: float = 0
         self.zoom: float = 1.0
-        self.mouse_x: float, self.mouse_y: float = pygame.mouse.get_position()
-        self.world_x: float = mouse_x / zoom + cam_x
-        self.world_y: float = mouse_y / zoom + cam_y
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+        self.world_x: float = self.mouse_x / self.zoom + self.cam_x
+        self.world_y: float = self.mouse_y / self.zoom + self.cam_y
         self.drag: bool = False
 
     def draw(self, scale: int) -> None:
-        for way in self.connections:
-            hub1 = self.get_hub(way.hub1)
-            hub2 = self.get_hub(way.hub2)
+        for way in self.map.connections:
+            hub1 = self.map.get_hub(way.hub1)
+            hub2 = self.map.get_hub(way.hub2)
+            pygame.draw.line(self, "white", hub1.coords, hub2.coords, 4)
+            pygame.draw.line(self, "black", hub1.coords, hub2.coords, 2)
+        rb = rainbow()
+        for hub in self.map.hubs.values():
+            if (hub.color.lower() == "rainbow"):
+                pygame.draw.circle(self, rb(2), hub.coords, 10)
+            else:
+                pygame.draw.circle(self, hub.color.lower(), hub.coords, 10)
+            pygame.draw.circle(self, "black", hub.coords, 10, 2)
 
-    def pan(self)
+    """def pan(self)
 
-    def zoom(self, mul: float)
+    def zoom(self, mul: float)"""
 
 
-"""
 class Parser:
 
-    @staticmethod
-    def parse(map: str) -> None:
+    def __init__(self, map: str) -> None:
+        # Open the map file
         try:
             with open(map) as f:
                 txt = f.read().strip()
@@ -139,7 +154,10 @@ class Parser:
             print(e)
             sys.exit()
 
+        # Check existence of nb_drones, hubs and connections
         try:
+            if valid[0][0].lower() != "nb_drones":
+                raise ParsingError("Number of drones is not defined")
             for i in valid:
                 if i[0].lower() == "nb_drones":
                     break
@@ -159,7 +177,8 @@ class Parser:
             print(e)
             sys.exit()
 
-        hubs, connections = [], []
+        # Save the hubs and connections
+        self.hubs, self.connections = [], []
         try:
             for i in valid:
                 if i[0].lower() == "nb_drones":
@@ -167,17 +186,17 @@ class Parser:
                     assert nb > 0 and nb < 1000
                 elif i[0].lower().find("hub") >= 0:
                     lst = i[1].strip().split(' ')
-                    hub = {
+                    hub: dict[str, str] = {
                         "id": lst[0],
-                        "x": int(lst[1]),
-                        "y": int(lst[2]),
+                        "x": lst[1],
+                        "y": lst[2],
                         "attr": ' '.join(lst[3:]).lstrip('[').rstrip(']')
                     }
                     if hub["attr"] == "":
                         hub.pop("attr")
                     if hub["id"].find("-") >= 0:
                         raise ParsingError(f"Invalid name for zone: {hub['id']}")
-                    hubs.append(hub)
+                    self.hubs.append(hub)
                 elif i[0].lower() == "connection":
                     lst = i[1].strip().split(' ')
                     hubs = lst[0].strip().split('-')
@@ -193,13 +212,13 @@ class Parser:
                         raise ParsingError(f"Hub {connection['hub1']} not defined")
                     if connection["hub2"] not in ids:
                         raise ParsingError(f"Hub {connection['hub2']} not defined")
-                    if connection in connections or {
+                    if connection in self.connections or {
                         "hub1": connection["hub2"], "hub2": connection["hub1"]
-                    } in connections:
+                    } in self.connections:
                         raise ParsingError(f"Duplicated connection: {connection}")
                     if connection["attr"] == "":
                         connection.pop("attr")
-                    connections.append(connection)
+                    self.connections.append(connection)
             for i in hubs:
                 if i["id"].find("start") >= 0:
                     break
@@ -265,4 +284,3 @@ class Simulation:
         self._map = map
         self._drones = [Drone]
         self._start = self._map._hubs
-"""
