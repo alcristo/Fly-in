@@ -4,6 +4,13 @@ import pygame
 import sys
 
 
+"""
+Possible next steps:
+
+- Duck typing for draw method (inherits from Protocol?)
+"""
+
+
 class ParsingError(Exception):
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -14,7 +21,7 @@ class Hub(BaseModel):
     coords: tuple[int, int] = Field(...)
     color: str = Field(...)
     zone: str = Field(default="normal")
-    capacity: int = Field(default=1, gt=0)
+    capacity: int = Field(default=1, ge=0)
     # self._neighbours: list[Hub] = []
 
     @model_validator(mode="after")
@@ -39,6 +46,14 @@ class Hub(BaseModel):
             "normal", "restricted", "priority", "blocked"
         ):
             raise ValidationError(f"invalid zone type: {self.zone}")
+        if self.zone.lower() == "blocked" and self.capacity != 0:
+            raise ValidationError(
+                f"hub {self.id} can't hold drones while being blocked"
+            )
+        if self.zone.lower() != "blocked" and self.capacity == 0:
+            raise ValidationError(
+                f"hub {self.id} must hold drones if not blocked"
+            )
         return self
 
 
@@ -71,7 +86,7 @@ class Connection(BaseModel):
         return self
 
 
-class Map(BaseModel):
+class Map:
     hubs: dict[tuple[int, int], Hub] = {}
     connections: list[Connection] = []
 
@@ -105,7 +120,7 @@ class Map(BaseModel):
             raise AttributeError(f"hub not in map: {name}")
 
 
-class Screen(pygame.Surface):
+class Scene(pygame.Surface):
     def __init__(self, w: int, h: int, level: Map):
         super().__init__((w, h))
         self.map: Map = level
@@ -116,6 +131,7 @@ class Screen(pygame.Surface):
         self.world_x: float = self.mouse_x / self.zoom + self.cam_x
         self.world_y: float = self.mouse_y / self.zoom + self.cam_y
         self.drag: bool = False
+        self._rainbow = rainbow()
 
     def draw(self, scale: int) -> None:
         for way in self.map.connections:
@@ -125,8 +141,8 @@ class Screen(pygame.Surface):
             pygame.draw.line(self, "black", hub1.coords, hub2.coords, 2)
         rb = rainbow()
         for hub in self.map.hubs.values():
-            if (hub.color.lower() == "rainbow"):
-                pygame.draw.circle(self, rb(2), hub.coords, 10)
+            if hub.color.lower() == "rainbow":
+                pygame.draw.circle(self, self._rainbow(2), hub.coords, 10)
             else:
                 pygame.draw.circle(self, hub.color.lower(), hub.coords, 10)
             pygame.draw.circle(self, "black", hub.coords, 10, 2)
@@ -164,7 +180,7 @@ class Parser:
             else:
                 raise ParsingError("Number of drones is not defined")
             for i in valid:
-                if i[0].find("hub") >= 0:
+                if i[0].find("hub") == 0:
                     break
             else:
                 raise ParsingError("No hubs in the map")
@@ -179,12 +195,21 @@ class Parser:
 
         # Save the hubs and connections
         self.hubs, self.connections = [], []
+        start, goal = 0, 0
         try:
             for i in valid:
                 if i[0].lower() == "nb_drones":
                     nb = int(i[1])
                     assert nb > 0 and nb < 1000
                 elif i[0].lower().find("hub") >= 0:
+                    if i[0].lower() == "start_hub" and not start:
+                        start += 1
+                    elif i[0].lower() == "start_hub" and start:
+                        raise ParsingError("map must have only a start hub")
+                    elif i[0].lower() == "end_hub" and not goal:
+                        goal += 1
+                    elif i[0].lower() == "end_hub" and goal:
+                        raise ParsingError("map must have only a goal hub")
                     lst = i[1].strip().split(' ')
                     hub: dict[str, str] = {
                         "id": lst[0],
@@ -274,13 +299,14 @@ class Drone:
         if to._zone == "blocked":
             raise ValueError(f"blocked hub: {to._id}")
         if to._zone == "restricted" and not transiting:
-            
+            self._goingto = to
+            self._transiting = get_connection(self._current, to)
         if to._occupation == to._capacity:
             pass # more if gonna be free
 
 
 class Simulation:
-    def __init__(self, map: Map, drones: int, start: Hub = None, goal: Hub = None) -> None:
-        self._map = map
+    def __init__(self, level: Map, drones: int, start: Hub = None, goal: Hub = None) -> None:
+        self._map = kevek
         self._drones = [Drone]
         self._start = self._map._hubs
