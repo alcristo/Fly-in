@@ -12,13 +12,14 @@ Plan:
 
 
 def rainbow() -> Callable[[float], pygame.Color]:
-    h = 0
+    h = .0
+
     def rotate(a: float) -> pygame.Color:
         nonlocal h
         h += a
         h %= 360
-        color = pygame.Color(0,0, 0)
-        color.hsva = (h, 100, 100)
+        color = pygame.Color(0, 0, 0)
+        color.hsva = (h, 100., 100., 100.)
         return color
     return rotate
 
@@ -51,23 +52,23 @@ def main() -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-    
+
         # fill the screen with color to wipe anything from last frame
         screen.fill("black")
-    
+
         # RENDER YOUR GAME HERE
-        #screen.blit(ground, (0,0))
+        # screen.blit(ground, (0,0))
         # pygame.draw.line(screen, "black", (0,0), (800,600), 3)
         # pygame.draw.circle(screen, "red", (400,300), 100)
         pygame.draw.circle(screen, next_color(2), (400,300), 100)
         # screen.blit(hub, (300,250))
         # screen.blit(text, (350,280))
-    
+
         # flip() the display to put your work on screen
         pygame.display.flip() # pygame.display.update()
-    
+
         clock.tick(30) # limits FPS to 30
-    
+
     pygame.quit()
 
 """
