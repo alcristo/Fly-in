@@ -192,7 +192,7 @@ class MapData(BaseModel):
         for i in range(len(hubs)):
             for j in range(i + 1, len(hubs)):
                 if hubs[i].position == hubs[j].position:
-                    raise ValueError(
+                    raise MapError(
                         f"{hubs[i].id} and {hubs[j].id} "
                         f"share coordinates: {hubs[i].position}",
                     )
@@ -207,7 +207,7 @@ class MapData(BaseModel):
                     self.connections[j].hub1 == self.connections[i].hub2
                 ]
                 if False not in dup:
-                    raise EdgeError(
+                    raise MapError(
                         "duplicated connection: "
                         f"{self.connections[i].hub1.id}-"
                         f"{self.connections[i].hub2.id}"
