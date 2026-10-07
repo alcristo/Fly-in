@@ -1,4 +1,5 @@
 from models import MapData, Hub, Connection, Zone
+from exceptions import ParsingError, NodeError, EdgeError
 
 
 """
@@ -7,26 +8,6 @@ If keeps being hard, either:
     - Convert to JSON
     - Use tqdm for loading bar
 """
-
-
-class ParsingError(Exception):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class NodeError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class EdgeError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class MapError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
 
 
 class Parser:
@@ -66,7 +47,6 @@ class Parser:
             hub1 = self._get_hub(edge_dict["hub1"], hubs)
             hub2 = self._get_hub(edge_dict["hub2"], hubs)
             new_connection = Connection(
-                id=edge_dict["id"],
                 hub1=hub1,
                 coords1=hub1.position,
                 hub2=hub2,
@@ -109,7 +89,7 @@ class Parser:
             if line[0] not in (
                 "nb_drones", "start_hub", "end_hub", "hub", "connection"
             ):
-                raise ParsingError(f"invalid line: {line}")
+                raise ParsingError(f"invalid line: {''.join(line)}")
             if line[0] == "nb_drones":
                 try:
                     nb_drones = int(line[1])
@@ -184,19 +164,23 @@ class Parser:
                 f"invalid coordinates for {inst['id']}: "
                 f"{inst['x'], inst['y']}"
             )
-        attr: list[list[str]] = []
-        for data in metadata[3:]:
-            attr.append(data.lstrip('[').rstrip(']').split('='))
-        for att in attr:
-            if att[0] not in ("color", "zone", "max_drones"):
-                continue
-            elif att[0] == "max_drones":
-                if element == "hub":
-                    inst.update({"max_drones": att[1]})
+        if len(metadata) > 3:
+            attr: list[list[str]] = []
+            for data in metadata[3:]:
+                attribute = data.lstrip('[').rstrip(']').split('=')
+                if len(attribute) != 2:
+                    raise ParsingError(f"invalid attribute: {attribute}")
+                attr.append(attribute)
+            for att in attr:
+                if att[0] not in ("color", "zone", "max_drones"):
+                    continue
+                elif att[0] == "max_drones":
+                    if element == "hub":
+                        inst.update({"max_drones": att[1]})
+                    else:
+                        inst.update({"max_drones": "1000"})
                 else:
-                    inst.update({"max_drones": "1000"})
-            else:
-                inst.update({att[0]: att[1]})
+                    inst.update({att[0]: att[1]})
         if not inst.get("color"):
             inst.update({"color": "white"})
         if not inst.get("zone"):
@@ -231,19 +215,25 @@ class Parser:
         metadata = line.split(' ')
         if len(metadata) < 1:
             raise ParsingError(f"invalid line: {element}: {line}")
-        inst.update({"id": metadata[0]})
-        hubs = metadata[1].split('-')
+        while "" in metadata:
+            metadata.remove("")
+        # inst.update({"id": metadata[0]})
+        hubs = metadata[0].split('-')
         if len(hubs) != 2:
-            raise ParsingError(f"invalid connection: {metadata[1]}")
+            raise ParsingError(f"invalid connection: {metadata[0]}")
         inst.update({"hub1": hubs[0]})
         inst.update({"hub2": hubs[1]})
-        attr: list[list[str]] = []
-        for data in metadata[1:]:
-            attr.append(data.lstrip('[').rstrip(']').split('='))
-        for att in attr:
-            if att[0] != "max_link_capacity":
-                continue
-            inst.update({att[0]: att[1]})
+        if len(metadata) > 2:
+            attr: list[list[str]] = []
+            for data in metadata[1:]:
+                attribute = data.lstrip('[').rstrip(']').split('=')
+                if len(attribute) != 2:
+                    raise ParsingError(f"invalid attribute: {attribute}")
+                attr.append(attribute)
+            for att in attr:
+                if att[0] != "max_link_capacity":
+                    continue
+                inst.update({att[0]: att[1]})
         if not inst.get("max_link_capacity"):
             inst.update({"max_link_capacity": "1"})
         else:
@@ -251,7 +241,8 @@ class Parser:
                 int(inst["max_link_capacity"])
             except ValueError:
                 raise ParsingError(
-                    f"invalid connection capacity for {inst['id']}: "
+                    "invalid connection capacity for"
+                    f"{inst['hub1']}-{inst['hub2']}: "
                     f"{inst['max_link_capacity']}"
                 )
         return inst

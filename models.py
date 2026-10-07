@@ -1,28 +1,9 @@
 # from .pygame_test import rainbow
+import pygame
 from pydantic import BaseModel, Field, model_validator
+from exceptions import NodeError, EdgeError, MapError
 from enum import Enum
 from typing import Any
-import pygame
-
-
-class ParsingError(Exception):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class NodeError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class EdgeError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class MapError(ParsingError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
 
 
 """
@@ -79,7 +60,6 @@ class Hub(BaseModel):
 
 
 class Connection(BaseModel):
-    id: str = Field(...)
     hub1: Hub = Field(...)
     hub2: Hub = Field(...)
     coords1: tuple[int, int] = Field(...)
@@ -87,23 +67,21 @@ class Connection(BaseModel):
     capacity: int = Field(gt=0, default=1)
 
     @model_validator(mode="after")
-    def validate_name(self):
-        if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
-            raise EdgeError(f"invalid name: {self.id}")
-        return self
-
-    @model_validator(mode="after")
     def validate_hubs(self):
         if self.hub1.id.lower() == self.hub2.id.lower():
             raise EdgeError(
-                f"{self.id} connects {self.hub1} with itself"
+                f"{self.hub1.id}-{self.hub2.id} connects with itself"
+            )
+        if (self.coords1 == self.coords2):
+            raise EdgeError(
+                f"{self.hub1.id}-{self.hub2.id} connects the same hub"
             )
         return self
 
     @model_validator(mode="after")
-    def validate_coords(self):
-        if (self.coords1 == self.coords2):
-            raise EdgeError(f"{self.id} connects the same hub")
+    def validate_link(self):
+        if self.capacity < 1:
+            self.capacity = 1
         return self
 
 

@@ -3,7 +3,7 @@ from parser import Parser, ParsingError
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/not_valid/13_duplicated_connection.txt"
+    path = "./maps/not_valid/26_unexpected_line.txt"
     # parser.parse(path)
     try:
         parser.parse(path)
