@@ -25,22 +25,25 @@ class MapError(ParsingError):
         super().__init__(message)
 
 
+"""
 class Position:
-    def __init__(self, x: int, y: int) -> None:
-        self.x = x
-        self.y = y
+    def __init__(self, pos: tuple[int, int]) -> None:
+        self.x = pos[0]
+        self.y = pos[1]
+"""
 
 
 class Zone(str, Enum):
     BLOCKED = "blocked"
     RESTRICTED = "restricted"
-    # NORMAL = "normal"
+    NORMAL = "normal"
     PRIORITY = "priority"
 
 
 class Hub(BaseModel):
     id: str = Field(...)
-    position: Position
+    # position: Position = Field(...)
+    position: tuple[int, int] = Field(...)
     color: str = Field(default="white")
     zone: Zone | None = None
     capacity: int = Field(default=1, gt=0)
@@ -77,8 +80,8 @@ class Hub(BaseModel):
 
 class Connection(BaseModel):
     id: str = Field(...)
-    hub1: str = Field(...)
-    hub2: str = Field(...)
+    hub1: Hub = Field(...)
+    hub2: Hub = Field(...)
     coords1: tuple[int, int] = Field(...)
     coords2: tuple[int, int] = Field(...)
     capacity: int = Field(gt=0, default=1)
@@ -91,7 +94,7 @@ class Connection(BaseModel):
 
     @model_validator(mode="after")
     def validate_hubs(self):
-        if self.hub1.lower() == self.hub2.lower():
+        if self.hub1.id.lower() == self.hub2.id.lower():
             raise ValidationError(
                 f"{self.id} connects {self.hub1} with itself"
             )
@@ -223,7 +226,9 @@ class Drone:
 
 
 class Simulation:
-    def __init__(self, level: Map, drones: int, start: Hub = None, goal: Hub = None) -> None:
+    def __init__(
+        self, level: Map, drones: int, start: Hub = None, goal: Hub = None
+    ) -> None:
         self._map = level
         self._drones: list[Drone] = drones
         self._start = self._map._hubs
