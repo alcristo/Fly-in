@@ -1,5 +1,5 @@
 # from .pygame_test import rainbow
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 from typing import Any
 import pygame
@@ -52,7 +52,7 @@ class Hub(BaseModel):
     @model_validator(mode="after")
     def validate_name(self):
         if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
-            raise ValidationError(f"invalid name: {self.id}")
+            raise NodeError(f"invalid name: {self.id}")
         return self
 
     @model_validator(mode="after")
@@ -68,11 +68,11 @@ class Hub(BaseModel):
     @model_validator(mode="after")
     def validate_zone(self):
         if self.zone == "blocked" and self.capacity != 0:
-            raise ValidationError(
+            raise NodeError(
                 f"hub {self.id} can't hold drones while being blocked"
             )
         if self.zone != "blocked" and self.capacity == 0:
-            raise ValidationError(
+            raise NodeError(
                 f"hub {self.id} must hold drones if not blocked"
             )
         return self
@@ -89,13 +89,13 @@ class Connection(BaseModel):
     @model_validator(mode="after")
     def validate_name(self):
         if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
-            raise ValidationError(f"invalid name: {self.id}")
+            raise EdgeError(f"invalid name: {self.id}")
         return self
 
     @model_validator(mode="after")
     def validate_hubs(self):
         if self.hub1.id.lower() == self.hub2.id.lower():
-            raise ValidationError(
+            raise EdgeError(
                 f"{self.id} connects {self.hub1} with itself"
             )
         return self
@@ -103,7 +103,7 @@ class Connection(BaseModel):
     @model_validator(mode="after")
     def validate_coords(self):
         if (self.coords1 == self.coords2):
-            raise ValidationError(f"{self.id} connects the same hub")
+            raise EdgeError(f"{self.id} connects the same hub")
         return self
 
 
@@ -198,11 +198,43 @@ class Validator:
 
 
 class MapData(BaseModel):
-    nb_drones: int = Field(...)
+    nb_drones: int = Field(gt=0)
     start_hub: Hub
     end_hub: Hub
     hubs: dict[str, Hub] = Field(...)
     connections: list[Connection] = Field(...)
+
+    @model_validator(mode="after")
+    def validate_coords(self):
+        hubs: list[Hub] = []
+        hubs.append(self.start_hub)
+        for hub in self.hubs.values():
+            hubs.append(hub)
+        hubs.append(self.end_hub)
+        for i in range(len(hubs)):
+            for j in range(i + 1, len(hubs)):
+                if hubs[i].position == hubs[j].position:
+                    raise ValueError(
+                        f"{hubs[i].id} and {hubs[j].id} "
+                        f"share coordinates: {hubs[i].position}",
+                    )
+        return self
+
+    @model_validator(mode="after")
+    def validate_connections(self):
+        for i in range(len(self.connections)):
+            for j in range(i + 1, len(self.connections)):
+                dup = [
+                    self.connections[i].hub1 == self.connections[j].hub2,
+                    self.connections[j].hub1 == self.connections[i].hub2
+                ]
+                if False not in dup:
+                    raise EdgeError(
+                        "duplicated connection: "
+                        f"{self.connections[i].hub1.id}-"
+                        f"{self.connections[i].hub2.id}"
+                    )
+        return self
 
 
 """

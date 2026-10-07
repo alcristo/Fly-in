@@ -79,7 +79,7 @@ class Parser:
             raise EdgeError(f"invalid connection: {edge_dict}")
         return new_connection
 
-    def parse(self, path: str):
+    def parse(self, path: str) -> MapData:
 
         # Open and read the file
         try:
@@ -150,6 +150,7 @@ class Parser:
                 assert self._hub_in_list(edge["hub2"], hubs)
             except AssertionError:
                 raise EdgeError(f"{edge['hub1']} or {edge['hub2']} not in map")
+            connections.append(self._init_connection(edge, hubs))
         hubs.pop(start_hub.id)
         hubs.pop(end_hub.id)
         return MapData(
@@ -240,17 +241,17 @@ class Parser:
         for data in metadata[1:]:
             attr.append(data.lstrip('[').rstrip(']').split('='))
         for att in attr:
-            if att[0] != "max_capacity_link":
+            if att[0] != "max_link_capacity":
                 continue
             inst.update({att[0]: att[1]})
-        if not inst.get("max_capacity_link"):
-            inst.update({"max_capacity_link": "1"})
+        if not inst.get("max_link_capacity"):
+            inst.update({"max_link_capacity": "1"})
         else:
             try:
-                int(inst["max_capacity_link"])
+                int(inst["max_link_capacity"])
             except ValueError:
                 raise ParsingError(
                     f"invalid connection capacity for {inst['id']}: "
-                    f"{inst['max_capacity_link']}"
+                    f"{inst['max_link_capacity']}"
                 )
         return inst
