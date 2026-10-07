@@ -1,4 +1,6 @@
 import pygame
+from map import Map
+from models import Hub
 from typing import Callable
 
 
@@ -24,10 +26,95 @@ def rainbow() -> Callable[[float], pygame.Color]:
     return rotate
 
 
-#def render_connection()
+class Scene:  # (pygame.Surface):
+    def __init__(self, screen: pygame.Surface, w: int, h: int, level: Map) -> None:
+        # super().__init__((w, h))
+        self.surface = screen
+        self.map: Map = level
+        self.zerozero: tuple[float, float] = (w // 8, h // 2)
+        self.cam_x: float = 0
+        self.cam_y: float = 0
+        self.lens: float = 1.0
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+        self.last_mouse_pos: tuple[int, int] = pygame.mouse.get_pos()
+        self.world_x: float = self.mouse_x / self.lens + self.cam_x
+        self.world_y: float = self.mouse_y / self.lens + self.cam_y
+        self.drag: bool = False
+        self._rainbow = rainbow()
+
+    def _scale(self, coords: tuple[int, int], scale: int) -> tuple[float, float]:
+        x: float = (coords[0] - self.cam_x) * self.lens * scale
+        y: float = (coords[1] - self.cam_y) * self.lens * scale
+        return (x, y)
+
+    def _get_hub_position(self, hub: Hub, scale: int) -> tuple[float, float]:
+        x = (self.zerozero[0] + hub.position[0] - self.cam_x) * self.lens * scale
+        y = (self.zerozero[1] + hub.position[1] - self.cam_y) * self.lens * scale
+        return (x, y)
+
+    def _get_hub_radius(self, radius: int, scale: int) -> int:
+        return 5 * scale
+
+    def draw_map(self, scale: int) -> None:
+        for edge in self.map.connections:
+            hub1 = edge.hub1
+            hub2 = edge.hub2
+            pygame.draw.line(self.surface, "black", self._get_hub_position(hub1, scale), self._get_hub_position(hub2, scale), 4)
+            pygame.draw.line(self.surface, "white", self._get_hub_position(hub1, scale), self._get_hub_position(hub2, scale), 2)
+        for hub in self.map.hubs.values():
+            if hub.color.lower() == "rainbow":
+                pygame.draw.circle(self.surface, self._rainbow(2), self._get_hub_position(hub, scale), 5 * scale)
+            else:
+                pygame.draw.circle(self.surface, hub.color.lower(), self._get_hub_position(hub, scale), 5 * scale)
+            pygame.draw.circle(self.surface, "black", self._get_hub_position(hub, scale), 50 * scale, 2)
+
+    def pan(self):
+        if self.drag:
+            self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+            dx = self.mouse_x - self.last_mouse_pos[0]
+            dy = self.mouse_y - self.last_mouse_pos[1]
+            self.cam_x = dx / self.lens
+            self.cam_y = dy / self.lens
+            self.last_mouse_pos = (self.mouse_x, self.mouse_y)
+
+    def zoom(self, event: pygame.event.Event):
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+        self.world_x = self.mouse_x / self.lens + self.cam_x
+        self.world_y = self.mouse_y / self.lens + self.cam_y
+        if event.y > 0:
+            self.lens *= 1.1
+        else:
+            self.lens /= 1.1
+        self.lens = max(.2, min(self.lens, 5.))
+        self.cam_x = self.world_x - self.mouse_x / self.lens
+        self.cam_y = self.world_y - self.mouse_y / self.lens
 
 
-#def render_hub(hub: Node) -> None:
+def draw_map(level: Map, scale: int):
+    pygame.init()
+    pygame.display.set_caption("Fly-in")
+    screen = pygame.display.set_mode((1500, 1000))
+    scene = Scene(screen, 1500, 1000, level)
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                scene.zoom(event)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                scene.drag = True
+                scene.last_mouse_pos = pygame.mouse.get_pos()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                scene.drag = False
+            elif event.type == pygame.MOUSEMOTION:
+                scene.pan()
+        screen.fill("purple")
+        scene.draw_map(scale)
+        pygame.display.update()
+        clock.tick(60)
+    pygame.quit()
 
 
 def main() -> None:
@@ -60,14 +147,14 @@ def main() -> None:
         # screen.blit(ground, (0,0))
         # pygame.draw.line(screen, "black", (0,0), (800,600), 3)
         # pygame.draw.circle(screen, "red", (400,300), 100)
-        pygame.draw.circle(screen, next_color(2), (400,300), 100)
+        pygame.draw.circle(screen, next_color(2), (400, 300), 100)
         # screen.blit(hub, (300,250))
         # screen.blit(text, (350,280))
 
         # flip() the display to put your work on screen
-        pygame.display.flip() # pygame.display.update()
+        pygame.display.flip()  # pygame.display.update()
 
-        clock.tick(30) # limits FPS to 30
+        clock.tick(30)  # limits FPS to 30
 
     pygame.quit()
 
