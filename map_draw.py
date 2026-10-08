@@ -1,6 +1,5 @@
 import pygame
 from map import Map
-from models import Hub
 from typing import Callable
 
 
@@ -42,29 +41,14 @@ class Scene:  # (pygame.Surface):
         self.drag: bool = False
         self._rainbow = rainbow()
 
-    def _scale(self, coords: tuple[int, int], scale: int) -> tuple[float, float]:
-        x: float = (coords[0] * scale - self.cam_x) * self.lens
-        y: float = (coords[1] * scale - self.cam_y) * self.lens
-        return (x, y)
-
-    def _get_hub_position(self, hub: Hub, scale: int) -> tuple[float, float]:
-        # x = (self.zerozero[0] + hub.position[0] * scale - self.cam_x) * self.lens
-        # y = (self.zerozero[1] + hub.position[1] * scale - self.cam_y) * self.lens
-        x = self.mouse_x + (self.zerozero[0] + hub.position[0] * scale - self.mouse_x) * self.lens
-        y = self.mouse_y + (self.zerozero[1] + hub.position[1] * scale - self.mouse_y) * self.lens
-        return (x, y)
-
-    def _get_hub_radius(self, radius: int, scale: int) -> int:
-        return 5 * scale
-
     def draw_map(self, scale: float) -> None:
         for edge in self.map.connections:
             hub1 = edge.hub1
             hub2 = edge.hub2
             ax = (hub1.position[0] * scale + self.zerozero[0])
-            ay = (hub1.position[1] * scale + self.zerozero[1])
+            ay = (-hub1.position[1] * scale + self.zerozero[1])
             bx = (hub2.position[0] * scale + self.zerozero[0])
-            by = (hub2.position[1] * scale + self.zerozero[1])
+            by = (-hub2.position[1] * scale + self.zerozero[1])
             ax = (ax - self.cam_x) * self.lens
             ay = (ay - self.cam_y) * self.lens
             bx = (bx - self.cam_x) * self.lens
@@ -85,7 +69,7 @@ class Scene:  # (pygame.Surface):
             )
         for hub in self.map.hubs.values():
             x = (hub.position[0] * scale + self.zerozero[0])
-            y = (hub.position[1] * scale + self.zerozero[1])
+            y = (-hub.position[1] * scale + self.zerozero[1])
             screen_x = (x - self.cam_x) * self.lens
             screen_y = (y - self.cam_y) * self.lens
             radius = max(3, int(30 * self.lens))
@@ -114,8 +98,8 @@ class Scene:  # (pygame.Surface):
     def pan(self):
         if self.drag:
             self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
-            dx = self.mouse_x + self.last_mouse_pos[0]
-            dy = self.mouse_y + self.last_mouse_pos[1]
+            dx = self.last_mouse_pos[0] - self.mouse_x
+            dy = self.last_mouse_pos[1] - self.mouse_y
             self.cam_x = dx / self.lens
             self.cam_y = dy / self.lens
             self.last_mouse_pos = (self.mouse_x, self.mouse_y)
@@ -145,7 +129,16 @@ def draw_map(level: Map, scale: int):
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.MOUSEWHEEL:
-                scene.zoom(event)
+                scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
+                scene.world_x = scene.cam_x + scene.mouse_x / scene.lens
+                scene.world_y = scene.cam_y + scene.mouse_y / scene.lens
+                if event.y > 0:
+                    scene.lens *= 1.1
+                else:
+                    scene.lens /= 1.1
+                scene.lens = max(.2, min(scene.lens, 5.))
+                scene.cam_x = scene.world_x - scene.mouse_x / scene.lens
+                scene.cam_y = scene.world_y - scene.mouse_y / scene.lens
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     scene.drag = True
@@ -154,8 +147,14 @@ def draw_map(level: Map, scale: int):
                 if event.button == 1:
                     scene.drag = False
             elif event.type == pygame.MOUSEMOTION:
-                scene.pan()
-        screen.fill("purple")
+                if scene.drag:
+                    scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
+                    dx = scene.last_mouse_pos[0] - scene.mouse_x
+                    dy = scene.last_mouse_pos[1] - scene.mouse_y
+                    scene.cam_x += dx
+                    scene.cam_y += dy
+                    scene.last_mouse_pos = (scene.mouse_x, scene.mouse_y)
+        screen.fill("lightgray")
         scene.draw_map(scale)
         pygame.display.update()
         clock.tick(60)
