@@ -89,10 +89,17 @@ class Scene:  # (pygame.Surface):
                 )
             pygame.draw.circle(
                 self.surface,
-                "black",
+                "gold",
                 (screen_x, screen_y),
                 radius,
                 max(2, int(4 * self.lens))
+            )
+            pygame.draw.circle(
+                self.surface,
+                "black",
+                (screen_x, screen_y),
+                radius,
+                max(1, int(2 * self.lens))
             )
 
     def pan(self):
@@ -151,8 +158,8 @@ def draw_map(level: Map, scale: int):
                     scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
                     dx = scene.last_mouse_pos[0] - scene.mouse_x
                     dy = scene.last_mouse_pos[1] - scene.mouse_y
-                    scene.cam_x += dx
-                    scene.cam_y += dy
+                    scene.cam_x += dx / scene.lens
+                    scene.cam_y += dy / scene.lens
                     scene.last_mouse_pos = (scene.mouse_x, scene.mouse_y)
         screen.fill("lightgray")
         scene.draw_map(scale)
