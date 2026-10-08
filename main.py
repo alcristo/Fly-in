@@ -1,6 +1,6 @@
 from parser import Parser, ParsingError
 from map import Map
-from pygame_test import draw_map
+from map_draw import draw_map
 
 
 def main() -> None:
