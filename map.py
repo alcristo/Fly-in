@@ -128,6 +128,7 @@ class Algorithm:
         raise AttributeError(f"{name} not in set")
 
     def _a_star(self, drone: Drone) -> PathNode:
+        """Possible enhancement: sum the weight of the drones to the heuristic"""
         opened: set[PathNode] = set()
         closed: set[PathNode] = set()
         current = PathNode(drone.current)
@@ -170,6 +171,16 @@ class Algorithm:
                         opened.add(node)
         return current
 
+#   def collision(old: Drone, new: Drone) -> bool:
+#        for
+
+    def check_plans(self, drone: Drone) -> None:
+        for older in self.drones:
+            if older is drone:
+                break
+            if "collision(older, drone)":
+                self._a_star(drone)
+                return self.check_plans(drone)
 
     def solve(self) -> str:
         solution = ""
@@ -181,4 +192,5 @@ class Algorithm:
                         drone.plan.append(optimal_path.hub.id)
                         optimal_path = optimal_path.next
                     drone.plan.reverse()
+                self.check_plans(drone)
         return solution
