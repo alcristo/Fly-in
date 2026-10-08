@@ -29,6 +29,10 @@ class Hub(BaseModel):
     zone: Zone | None = None
     capacity: int = Field(default=1, gt=0)
     occupation: int = 0
+    connections: list[str] = []
+    _g: int = 0
+    _h: int = 1000
+    _f: int = 1000
 
     @model_validator(mode="after")
     def validate_name(self):
@@ -57,6 +61,35 @@ class Hub(BaseModel):
                 f"hub {self.id} must hold drones if not blocked"
             )
         return self
+
+    def is_occupied(self) -> bool:
+        return self.occupation >= self.capacity
+
+    @property
+    def g(self) -> int:
+        return self._g
+
+    @g.setter
+    def g(self, n: int) -> None:
+        self._g = n
+        self._f = self._g + self._h
+
+    @property
+    def h(self) -> int:
+        return self._h
+
+    @h.setter
+    def h(self, n: int) -> None:
+        self._h = n
+        self._f = self._g + self._h
+
+    @property
+    def f(self) -> int:
+        return self._f
+
+    @f.setter
+    def f(self, n: int) -> None:
+        self._f = n
 
 
 class Connection(BaseModel):
@@ -216,25 +249,6 @@ class MapData(BaseModel):
 
 
 """
-class Drone:
-    def __init__(self, start: Start) -> None:
-        self._current: Hub = start
-        self._goingto: Hub | None = None
-        self._transiting: Connection | None = None
-
-    def _go_to(self, to: Hub):
-        neighs = [hub._id for hub in self._current._neighbours]
-        if to._id not in neighs:
-            raise ValueError(f"{hub._id} not neighboring {self._current._id}")
-        if to._zone == "blocked":
-            raise ValueError(f"blocked hub: {to._id}")
-        if to._zone == "restricted" and not transiting:
-            self._goingto = to
-            self._transiting = get_connection(self._current, to)
-        if to._occupation == to._capacity:
-            pass # more if gonna be free
-
-
 class Simulation:
     def __init__(
         self, level: Map, drones: int, start: Hub = None, goal: Hub = None
