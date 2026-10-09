@@ -30,9 +30,9 @@ class Hub(BaseModel):
     capacity: int = Field(default=1, gt=0)
     occupation: int = 0
     connections: list[str] = []
-    _g: int = 0
-    _h: int = 1000
-    _f: int = 1000
+    _g: float = 0
+    _h: float = 1000
+    _f: float = 1000
 
     @model_validator(mode="after")
     def validate_name(self):
@@ -66,29 +66,29 @@ class Hub(BaseModel):
         return self.occupation >= self.capacity
 
     @property
-    def g(self) -> int:
+    def g(self) -> float:
         return self._g
 
     @g.setter
-    def g(self, n: int) -> None:
+    def g(self, n: float) -> None:
         self._g = n
         self._f = self._g + self._h
 
     @property
-    def h(self) -> int:
+    def h(self) -> float:
         return self._h
 
     @h.setter
-    def h(self, n: int) -> None:
+    def h(self, n: float) -> None:
         self._h = n
         self._f = self._g + self._h
 
     @property
-    def f(self) -> int:
+    def f(self) -> float:
         return self._f
 
     @f.setter
-    def f(self, n: int) -> None:
+    def f(self, n: float) -> None:
         self._f = n
 
 
@@ -98,6 +98,7 @@ class Connection(BaseModel):
     coords1: tuple[int, int] = Field(...)
     coords2: tuple[int, int] = Field(...)
     capacity: int = Field(gt=0, default=1)
+    occupation: int = 0
 
     @model_validator(mode="after")
     def validate_hubs(self):
@@ -116,6 +117,9 @@ class Connection(BaseModel):
         if self.capacity < 1:
             self.capacity = 1
         return self
+
+    def is_occupied(self) -> bool:
+        return self.occupation >= self.capacity
 
 
 """
