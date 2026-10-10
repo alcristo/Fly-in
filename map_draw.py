@@ -30,7 +30,7 @@ class Scene:  # (pygame.Surface):
         # super().__init__((w, h))
         self.surface = screen
         self.map: Map = level
-        self.zerozero: tuple[float, float] = (w // 8, h // 2)
+        self.zerozero: tuple[float, float] = (w // 16, h // 2)
         self.cam_x: float = 0
         self.cam_y: float = 0
         self.lens: float = 1.0
@@ -127,8 +127,8 @@ class Scene:  # (pygame.Surface):
 def draw_map(level: Map, scale: int):
     pygame.init()
     pygame.display.set_caption("Fly-in")
-    screen = pygame.display.set_mode((1500, 1000))
-    scene = Scene(screen, 1500, 1000, level)
+    screen = pygame.display.set_mode((1200, 800))
+    scene = Scene(screen, 1200, 800, level)
     clock = pygame.time.Clock()
     running = True
     while running:

@@ -5,7 +5,7 @@ from math import inf
 
 
 class Map:
-    hubs: dict[tuple[int, int], Hub] = {}
+    hubs: dict[str, Hub] = {}
     connections: list[Connection] = []
     start_hub: Hub
     goal_hub: Hub
@@ -19,7 +19,7 @@ class Map:
                 f"({new.position[0]},{new.position[1]}) already occupied by"
                 f"{self.hubs.get(new.position)}"
             )
-        self.hubs.update({new.position: new})
+        self.hubs.update({new.id: new})
 
     def add_connection(self, new: Connection) -> None:
         hubs = (new.hub1, new.hub2)
@@ -43,12 +43,8 @@ class Map:
                     return edge
         raise AttributeError(f"connection not in map: {fro}-{to}")
 
-    def get_hub(self, name: str) -> Hub:
-        for hub in self.hubs.values():
-            if hub.id == name:
-                return (hub)
-        else:
-            raise AttributeError(f"hub not in map: {name}")
+    def hub(self, name: str) -> Hub:
+        return self.hubs[name]
 
     def fill_map(self, map_data: MapData):
         self.start_hub = map_data.start_hub
@@ -162,12 +158,15 @@ class Algorithm:
                 break
             i = 0
             for neighbour in current.hub.connections:
-                hub = self.map.get_hub(neighbour)
+                hub = self.map.hub(neighbour)
                 if PathNode.node_in_set(hub.id, closed):
                     i += 1
                     continue
-                node = PathNode(self.map.get_hub(neighbour))
+                node = PathNode(self.map.hub(neighbour))
                 node.next = current
+                if node.hub.zone == "restricted":
+                    wait = node
+                    node.next = wait
                 node.g = g
                 if node.hub == self.map.start_hub:
                     node.h = inf
@@ -194,7 +193,7 @@ class Algorithm:
             if older is drone:
                 break
             if "collision(older, drone)":
-                self._a_star(self.map.get_hub("conflict"))
+                self._a_star(self.map.hub("conflict"))
                 # self._alt_a_star
                 return self.check_plans(drone)
 
@@ -223,14 +222,12 @@ class Algorithm:
                 if drone.plan[turn] == name:
                     if name == self.map.goal_hub.id:
                         return False
-                    capacity = self.map.get_hub(name).capacity
+                    capacity = self.map.hub(name).capacity
                     if self.hub_occupation(name, turn + 1) + 1 == capacity:
                         return True
             return False
 
         def edge_conflict(drone: Drone, plan: list[str]) -> bool:
-            if not vertex_conflict(drone, plan):
-                return False
             for turn in range(1, len(plan)):
                 fro = plan[turn]
                 to = plan[turn + 1]

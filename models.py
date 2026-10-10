@@ -122,39 +122,6 @@ class Connection(BaseModel):
         return self.occupation >= self.capacity
 
 
-"""
-class Scene(pygame.Surface):
-    def __init__(self, w: int, h: int, level: Map):
-        super().__init__((w, h))
-        self.map: Map = level
-        self.cam_x: float = 0
-        self.cam_y: float = 0
-        self.zoom: float = 1.0
-        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
-        self.world_x: float = self.mouse_x / self.zoom + self.cam_x
-        self.world_y: float = self.mouse_y / self.zoom + self.cam_y
-        self.drag: bool = False
-        self._rainbow = rainbow()
-
-    def draw_map(self, scale: int) -> None:
-        for edge in self.map.connections:
-            hub1 = self.map.get_hub(edge.hub1)
-            hub2 = self.map.get_hub(edge.hub2)
-            pygame.draw.line(self, "white", hub1.coords, hub2.coords, 4)
-            pygame.draw.line(self, "black", hub1.coords, hub2.coords, 2)
-        for hub in self.map.hubs.values():
-            if hub.color.lower() == "rainbow":
-                pygame.draw.circle(self, self._rainbow(2), hub.coords, 10)
-            else:
-                pygame.draw.circle(self, hub.color.lower(), hub.coords, 10)
-            pygame.draw.circle(self, "black", hub.coords, 10, 2)
-
-    def pan(self)
-
-    def zoom(self, mul: float)
-"""
-
-
 class Validator:
 
     @classmethod
