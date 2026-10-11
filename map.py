@@ -1,7 +1,8 @@
 from models import Hub, Connection, MapData
 from parser import NodeError, EdgeError
 from typing import Any
-from math import inf
+from math import inf, sqrt
+import heapq
 
 
 class Map:
@@ -14,11 +15,12 @@ class Map:
         ids = [hub.id for hub in self.hubs.values()]
         if new.id in ids:
             raise NodeError(f"hub {new.id} already in map")
-        if self.hubs.get(new.position):
-            raise AttributeError(
-                f"({new.position[0]},{new.position[1]}) already occupied by"
-                f"{self.hubs.get(new.position)}"
-            )
+        for name in ids:
+            if self.hubs[name].position == new.position:
+                raise AttributeError(
+                    f"({new.position[0]},{new.position[1]}) "
+                    f"already occupied by {name}"
+                )
         self.hubs.update({new.id: new})
 
     def add_connection(self, new: Connection) -> None:
@@ -46,6 +48,16 @@ class Map:
     def hub(self, name: str) -> Hub:
         return self.hubs[name]
 
+    def neighbours(self, name: str) -> set[str]:
+        self.hubs[name]
+        neighs: set[str] = set()
+        for edge in self.connections:
+            if name == edge.hub1:
+                neighs.add(edge.hub2.id)
+            elif name == edge.hub2:
+                neighs.add(edge.hub1.id)
+        return neighs
+
     def fill_map(self, map_data: MapData):
         self.start_hub = map_data.start_hub
         self.add_hub(map_data.start_hub)
@@ -58,6 +70,25 @@ class Map:
             self.add_connection(edge)
             edge.hub1.connections.append(edge.hub2.id)
             edge.hub2.connections.append(edge.hub1.id)
+
+    def init_h(self) -> None:
+        open_heap: list[tuple[int, str]] = []
+        cl_set: set[str] = set()
+        current: str = self.goal_hub.id
+        heapq.heappush(open_heap, (0, current))
+        while len(open_heap):
+            dist, current = heapq.heappop(open_heap)
+            cl_set.add(current)
+            neighbours = self.neighbours(current)
+            for hub in neighbours:
+                if hub in cl_set:
+                    continue
+                zone = 1
+                if self.hub(hub).zone == "restricted":
+                    zone = 2
+                heapq.heappush(open_heap, (dist + 1 + zone, hub))
+        for h, hub in open_heap:
+            self.hub(hub).heuristic = h
 
 
 class Drone:
@@ -72,8 +103,8 @@ class Drone:
 class PathNode:
     def __init__(self, new: Hub):
         self.hub = new
-        self._g: float = 0
-        self._h: float = 0
+        self._g: float = inf
+        self._h: float = new.heuristic
         self._f: float = 1e12
         self.next: Any = None
 
@@ -84,19 +115,12 @@ class PathNode:
                 return True
         return False
 
-    def heuristic(self) -> None:
-        if self.hub.is_occupied():
-            self.h = 100
-            return
-        zone = self.hub.zone
-        if zone == "normal":
-            self.h += 1
-        elif zone == "priority":
-            self.h += .8
-        elif zone == "restricted":
-            self.h += 2
-        else:
-            self.h += inf
+    @staticmethod
+    def node_in_heap(name: str, heap: list[Any]) -> bool:
+        for node in heap:
+            if node[1].hub.id == name:
+                return True
+        return False
 
     @property
     def g(self) -> float:
@@ -129,30 +153,64 @@ class Algorithm:
         self.turns = 0
 
     @staticmethod
-    def select_node(name: str, set: set[PathNode]) -> PathNode:
+    def _select_node(name: str, set: set[PathNode]) -> PathNode:
         for node in set:
             if node.hub.id == name:
                 return node
         raise AttributeError(f"{name} not in set")
 
+    def _occupied(self, hub: Hub, turn: int) -> bool:
+        occupation = 0
+        for plan in self.plans:
+            if plan[turn] == hub.id:
+                occupation += 1
+                if occupation == hub.capacity:
+                    return True
+        return False
+
+    def _euclid(self, hub: Hub) -> float:
+        coords = hub.position
+        end = self.map.goal_hub.position
+        sq_dist = (end[0] - coords[0])**2 + (end[1] - coords[1])**2
+        return sqrt(sq_dist)
+
+    def _next_turn_free(self, hub: Hub, since: int) -> int:
+        plan_len = [len(plan) for plan in self.plans]
+        for i in range(since, max(plan_len)):
+            if not self._occupied(hub, i):
+                return i
+        return max(plan_len)
+
+    def _heuristic(self, node: PathNode, turn: int) -> None:
+        node.h = self._euclid(node.hub)
+        if self._occupied(node.hub, turn):
+            node.h += self._next_turn_free(node.hub, turn) - turn
+        zone = node.hub.zone
+        if zone == "normal":
+            node.h += 1
+        elif zone == "priority":
+            node.h += .5
+        elif zone == "restricted":
+            node.h += 2
+        else:
+            node.h += inf
+
     def _a_star(self, start: Hub) -> PathNode:
         """Possible enhancement: sum the weight of the drones to the heuristic"""
-        opened: set[PathNode] = set()
+        opened: list[tuple[float, PathNode]] = []
         closed: set[PathNode] = set()
         current = PathNode(start)
-        opened.add(current)
+        current.g = 0
+        heapq.heappush(opened, (current.f, current))
         g_list: dict[str, float] = {}
-        h_list: dict[str, float] = {}
         f_list: dict[str, float] = {}
         g = 0
-        for _, hub in self.map.hubs.items():
-            g_list.update({hub.id: 0})
-            h_list.update({hub.id: inf})
-            f_list.update({hub.id: g_list[hub.id] + h_list[hub.id]})
+        for name, hub in self.map.hubs.items():
+            g_list.update({name: inf})
+            f_list.update({name: g_list[name] + hub.heuristic})
         while len(opened):
             g += 1
-            current = self.select_node(current.hub.id, opened)
-            opened.remove(current)
+            current = heapq.heappop(opened)[1]
             closed.add(current)
             if current.hub.id == self.map.goal_hub:
                 break
@@ -162,27 +220,26 @@ class Algorithm:
                 if PathNode.node_in_set(hub.id, closed):
                     i += 1
                     continue
-                node = PathNode(self.map.hub(neighbour))
+                node = PathNode(hub)
                 node.next = current
-                if node.hub.zone == "restricted":
-                    wait = node
-                    node.next = wait
                 node.g = g
                 if node.hub == self.map.start_hub:
                     node.h = inf
                 elif node.hub == self.map.goal_hub:
                     node.h = 0
                 else:
-                    node.heuristic()
+                    self._heuristic(node, g)
                 if node.g < g_list[node.hub.id]:
                     g_list.update({node.hub.id: g})
-                    f_list.update({hub.id: g_list[hub.id] + h_list[hub.id]})
+                    f_list.update({hub.id: g_list[hub.id] + node.h})
                 else:
                     continue
-                if node.f < f_list[hub.id] or not node.node_in_set(hub.id, opened):
+                if node.f < f_list[hub.id] or not node.node_in_heap(
+                    hub.id, opened
+                ):
                     f_list.update({hub.id: node.f})
-                    if not node.node_in_set(hub.id, opened):
-                        opened.add(node)
+                    if not node.node_in_heap(hub.id, opened):
+                        heapq.heappush(opened, (node.f, node))
         return current
 
 #   def collision(old: Drone, new: Drone) -> bool:
@@ -241,7 +298,7 @@ class Algorithm:
             for turn in range(1, len(plan)):
                 fro = plan[turn - 1]
                 to = plan[turn]
-                if drone.plan[turn] == fro or drone.plan[turn - 1] == to:
+                if drone.plan[turn] == fro and drone.plan[turn - 1] == to:
                     return True
             return False
 
@@ -255,7 +312,7 @@ class Algorithm:
         if not self.plans:
             return
         for plan in self.plans:
-            if check_conflicts(drone, plan):
+            if self.check_conflicts(drone, plan):
                 if alt_route(drone, self.plans):
                     a_star_plans(turn, drone)
                 else:
@@ -269,9 +326,30 @@ class Algorithm:
             optimal_plan.append(optimal_path.hub.id)
             optimal_path = optimal_path.next
         optimal_plan.reverse()
+        for i in range(len(optimal_plan) - 1):
+            if self.map.hub(optimal_plan[i]).zone == "restricted":
+                try:
+                    optimal_plan.insert(
+                        i, f"{self.map.hub(optimal_plan[i - 1])}"
+                        f"-{self.map.hub(optimal_plan[i])}"
+                    )
+                except IndexError:
+                    optimal_plan.insert(
+                        i, f"{self.map.start_hub.id}"
+                        f"-{self.map.hub(optimal_plan[i])}"
+                    )
         for drone in self.drones:
             if not drone.plan:
                 drone.plan = optimal_plan
             self.manage_conflicts(drone)
             self.plans.append(drone.plan)
+        for turn in range(max([len(plan) for plan in self.plans])):
+            for plan in self.plans:
+                if not len(plan) or plan[turn] == "--wait--":
+                    continue
+                try:
+                    solution += f"D{self.plans.index(plan) + 1}-{plan[turn]}"
+                except IndexError:
+                    if len(plan):
+                        plan.clear()
         return solution

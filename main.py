@@ -5,7 +5,7 @@ from map_draw import draw_map
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/challenger/01_the_impossible_dream.txt"
+    path = "./maps/test/easy/01_linear_path.txt"
     # parser.parse(path)
     try:
         data = parser.parse(path)

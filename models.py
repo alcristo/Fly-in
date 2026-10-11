@@ -23,16 +23,13 @@ class Zone(str, Enum):
 
 class Hub(BaseModel):
     id: str = Field(...)
-    # position: Position = Field(...)
     position: tuple[int, int] = Field(...)
     color: str = Field(default="white")
     zone: Zone | None = None
     capacity: int = Field(default=1, gt=0)
     occupation: int = 0
     connections: list[str] = []
-    _g: float = 0
-    _h: float = 1000
-    _f: float = 1000
+    heuristic: int = 1000000
 
     @model_validator(mode="after")
     def validate_name(self):
