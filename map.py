@@ -1,5 +1,6 @@
+from __future__ import annotations
 from models import Hub, Connection, MapData
-from parser import NodeError, EdgeError
+from exceptions import NodeError, EdgeError, MapError
 from typing import Any
 from math import inf, sqrt
 import heapq
@@ -91,6 +92,17 @@ class Map:
             self.hub(hub).heuristic = h
 
 
+class Reservations:
+    def __init__(self) -> None:
+        self.vertex_occupancy: dict[int, dict[str, int]] = {}
+        self.edge_occupancy: dict[int, dict[tuple[str, str], int]] = {}
+        self.transitions: set[tuple[str, str, int]] = set()
+
+
+def undirected_edge(u: str, v: str) -> tuple[str, str]:
+    return (min((u, v)), max((u, v)))
+
+
 class Drone:
     def __init__(self, number: int, start: Hub) -> None:
         self.id = number
@@ -101,12 +113,26 @@ class Drone:
 
 
 class PathNode:
-    def __init__(self, new: Hub):
+    def __init__(self, new: Hub, fro: Hub | None = None):
         self.hub = new
+        self.fro: Hub | None = None
+        if new.zone == "restricted":
+            self.fro = fro
         self._g: float = inf
         self._h: float = new.heuristic
         self._f: float = 1e12
-        self.next: Any = None
+        self.next: PathNode | None = None
+
+    def hub_in_path(self) -> bool:
+        if None in (self, self.next):
+            return False
+        name = self.hub.id
+        node = self.next
+        while node:
+            if node.hub.id == name:
+                return True
+            node = node.next
+        return False
 
     @staticmethod
     def node_in_set(name: str, set: set[Any]) -> bool:
@@ -150,6 +176,7 @@ class Algorithm:
         self.map = level
         self.drones = drones
         self.plans: list[list[str]] = []
+        self.reservations = Reservations()
         self.turns = 0
 
     @staticmethod
@@ -159,7 +186,7 @@ class Algorithm:
                 return node
         raise AttributeError(f"{name} not in set")
 
-    def _occupied(self, hub: Hub, turn: int) -> bool:
+    """def _occupied_zone(self, hub: Hub, turn: int) -> bool:
         occupation = 0
         for plan in self.plans:
             if plan[turn] == hub.id:
@@ -168,35 +195,98 @@ class Algorithm:
                     return True
         return False
 
+    def _occupied_link(self, fro: Hub, to: Hub, turn: int) -> bool:
+        if self._occupied_zone(to, turn):
+            return True
+        occupation = 0
+        for plan in self.plans:
+            if plan[turn] == fro.id and plan[turn - 1] == to.id:
+                occupation += 1
+                if occupation == self.map.get_connection(fro.id, to.id).capacity:
+                    return True
+        return False"""
+
+    def _occupied(self, fro: Hub, to: Hub, turn: int) -> bool:
+        occupation = 0
+        occupied = {"zone": False, "link": False}
+        for plan in self.plans:
+            if plan[turn] == to.id:
+                occupation += 1
+                if occupation == to.capacity:
+                    occupied["zone"] = True
+        occupation = 0
+        link = self.map.get_connection(fro.id, to.id)
+        for plan in self.plans:
+            if plan[turn] == to.id and plan[turn - 1] == fro.id:
+                occupation += 1
+                if occupation == link.capacity:
+                    occupied["link"] = True
+            elif plan[turn] == fro.id and plan[turn - 1] == to.id:
+                occupation += 1
+                if occupation == link.capacity:
+                    occupied["link"] = True
+            elif plan[turn] == to.id and fro.id in plan[turn - 1].split('-'):
+                if occupation == link.capacity:
+                    occupied["link"] = True
+        return True in occupied.values()
+
+    def can_move(self, u: str, v: str, t: int):
+        to = self.map.hub(v)
+        to_cap = to.capacity
+        edge_cap = self.map.get_connection(u, v).capacity
+        if self.reservations.vertex_occupancy.get(t, {}).get(v, 0) >= to_cap:
+            return False
+        if self.reservations.edge_occupancy.get(t, {}).get(
+            undirected_edge(u, v), 0
+        ) >= edge_cap:
+            return False
+        if (v, u, t) in self.reservations.transitions:
+            return False
+        return True
+
     def _euclid(self, hub: Hub) -> float:
         coords = hub.position
         end = self.map.goal_hub.position
         sq_dist = (end[0] - coords[0])**2 + (end[1] - coords[1])**2
         return sqrt(sq_dist)
 
-    def _next_turn_free(self, hub: Hub, since: int) -> int:
+    def _next_turn_free(self, fro: Hub, to: Hub, since: int) -> int:
         plan_len = [len(plan) for plan in self.plans]
         for i in range(since, max(plan_len)):
-            if not self._occupied(hub, i):
-                return i
-        return max(plan_len)
+            if not self._occupied(fro, to, i):
+                if to.zone == "restricted":
+                    return min((abs(i - since), abs(i - since - 1)))
+                else:
+                    return i - since
+        return max(plan_len) - since
 
-    def _heuristic(self, node: PathNode, turn: int) -> None:
-        node.h = self._euclid(node.hub)
-        if self._occupied(node.hub, turn):
-            node.h += self._next_turn_free(node.hub, turn) - turn
+    def _heuristic(self, node: PathNode) -> None:
+        node.h = node.hub.heuristic
+        if node.hub_in_path():
+            node.h += 5
         zone = node.hub.zone
         if zone == "normal":
             node.h += 1
         elif zone == "priority":
-            node.h += .5
+            node.h += .9
         elif zone == "restricted":
             node.h += 2
         else:
             node.h += inf
 
+    def _all_neighbours_occupied(self, fro: Hub, turn: int) -> bool:
+        if fro == self.map.goal_hub:
+            return False
+        neighbours = self.map.neighbours(fro.id)
+        for name in neighbours:
+            to = self.map.hub(name)
+            if not self._occupied(fro, to, turn):
+                return False
+        return True
+
     def _a_star(self, start: Hub) -> PathNode:
         """Possible enhancement: sum the weight of the drones to the heuristic"""
+        # init open heap and closed set
         opened: list[tuple[float, PathNode]] = []
         closed: set[PathNode] = set()
         current = PathNode(start)
@@ -205,45 +295,87 @@ class Algorithm:
         g_list: dict[str, float] = {}
         f_list: dict[str, float] = {}
         g = 0
+        # if no neighbours of start hub occupied, wait (redundant?)
+        while self._all_neighbours_occupied(start, g):
+            g += 1
+            node = PathNode(start)
+            node.next = current
+            node.g = g
+            current = node
+        # init g & f score dictionaries
         for name, hub in self.map.hubs.items():
             g_list.update({name: inf})
             f_list.update({name: g_list[name] + hub.heuristic})
+        # while nodes in open heap
         while len(opened):
-            g += 1
+            g = int(current.g) + 1
             current = heapq.heappop(opened)[1]
             closed.add(current)
+            # if current is goal, exit
             if current.hub.id == self.map.goal_hub:
                 break
-            i = 0
-            for neighbour in current.hub.connections:
-                hub = self.map.hub(neighbour)
-                if PathNode.node_in_set(hub.id, closed):
-                    i += 1
-                    continue
-                node = PathNode(hub)
+            # if all neighbours occupied, wait
+            while self._all_neighbours_occupied(current.hub, g):
+                g += 1
+                node = PathNode(current.hub)
                 node.next = current
                 node.g = g
+                current = node
+            # check neighbours
+            for neighbour in current.hub.connections:
+                hub = self.map.hub(neighbour)
+                if hub.zone == "blocked":
+                    continue
+                if PathNode.node_in_set(hub.id, closed):
+                    continue
+                # if occupied neighbour, check when it's gonna be free
+                if self._occupied(current.hub, hub, g):
+                    free_in = self._next_turn_free(current.hub, hub, g)
+                    node = current
+                    for _ in range(free_in):
+                        wait = PathNode(node.hub)
+                        wait.next = node
+                        wait.g = node.g + 1
+                        node = wait
+                # if restricted neighbour, occupy link
+                if hub.zone == "restricted":
+                    r_node = PathNode(hub, current.hub)
+                    r_node.next = current
+                    r_node.g = current.g + 1
+                    node = PathNode(hub)
+                    node.next = r_node
+                    node.g = r_node.g + 1
+                else:
+                    node = PathNode(hub)
+                    node.next = current
+                    node.g = g
+                # compute heuristics
                 if node.hub == self.map.start_hub:
                     node.h = inf
                 elif node.hub == self.map.goal_hub:
                     node.h = 0
                 else:
-                    self._heuristic(node, g)
+                    self._heuristic(node)
+                # if shorter distance from start, update g
                 if node.g < g_list[node.hub.id]:
                     g_list.update({node.hub.id: g})
                     f_list.update({hub.id: g_list[hub.id] + node.h})
                 else:
                     continue
+                # if better f cost, update
                 if node.f < f_list[hub.id] or not node.node_in_heap(
                     hub.id, opened
                 ):
                     f_list.update({hub.id: node.f})
                     if not node.node_in_heap(hub.id, opened):
                         heapq.heappush(opened, (node.f, node))
+        # if current hub is not goal, map has no solution
+        if current.hub != self.map.goal_hub:
+            raise MapError(
+                "map has no reachable solution from "
+                f"{self.map.start_hub.id} to {self.map.goal_hub.id}"
+            )
         return current
-
-#   def collision(old: Drone, new: Drone) -> bool:
-#        for
 
     def check_plans(self, drone: Drone) -> None:
         for older in self.drones:
@@ -269,6 +401,8 @@ class Algorithm:
         traffic = 0
         for plan in self.plans:
             if plan[turn - 1] == fro and plan[turn] == to:
+                traffic += 1
+            elif plan[turn - 1] == to and plan[turn] == fro:
                 traffic += 1
         return traffic
 
@@ -308,7 +442,7 @@ class Algorithm:
             swap_conflict(drone, plan)
         )
 
-    def manage_conflicts(self, drone: Drone):
+    """def manage_conflicts(self, drone: Drone):
         if not self.plans:
             return
         for plan in self.plans:
@@ -316,14 +450,19 @@ class Algorithm:
                 if alt_route(drone, self.plans):
                     a_star_plans(turn, drone)
                 else:
-                    drone.plan.insert(turn - 1, "--wait--")
+                    drone.plan.insert(turn - 1, "--wait--")"""
 
     def solve(self) -> str:
         solution = ""
-        optimal_path = self._a_star(self.map.start_hub)
+        optimal_path: PathNode | None = self._a_star(self.map.start_hub)
         optimal_plan: list[str] = []
         while optimal_path:
-            optimal_plan.append(optimal_path.hub.id)
+            if optimal_path.hub.id == optimal_plan[-1]:
+                optimal_plan.insert(-1, "--wait--")
+            elif optimal_path.fro:
+                optimal_plan.append(f"{optimal_path.fro}-{optimal_path.hub}")
+            else:
+                optimal_plan.append(optimal_path.hub.id)
             optimal_path = optimal_path.next
         optimal_plan.reverse()
         for i in range(len(optimal_plan) - 1):
@@ -341,7 +480,7 @@ class Algorithm:
         for drone in self.drones:
             if not drone.plan:
                 drone.plan = optimal_plan
-            self.manage_conflicts(drone)
+            # self.manage_conflicts(drone)
             self.plans.append(drone.plan)
         for turn in range(max([len(plan) for plan in self.plans])):
             for plan in self.plans:
