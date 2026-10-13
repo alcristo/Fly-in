@@ -75,7 +75,7 @@ class Parser:
         valid_lines = [
             line.split(':') for line in lines if line.find('#') != 0
         ]
-        print(txt)
+        # print(txt)
 
         # Define nodes and edges dictionaries
         nb_drones = 0

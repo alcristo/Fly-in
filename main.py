@@ -1,11 +1,11 @@
 from parser import Parser, ParsingError
-from map import Map
+from map import Map, Algorithm
 from map_draw import draw_map
 
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/test/easy/01_linear_path.txt"
+    path = "./maps/easy/02_simple_fork.txt"
     # parser.parse(path)
     try:
         data = parser.parse(path)
@@ -21,6 +21,9 @@ def main() -> None:
     print("Parsing was successful")
     map = Map()
     map.fill_map(data)
+    algo = Algorithm(map)
+    # print("Solving...")
+    print(algo.solve())
     draw_map(map, 100)
 
 

@@ -7,6 +7,7 @@ import heapq
 
 
 class Map:
+    drones: int = 0
     hubs: dict[str, Hub] = {}
     connections: list[Connection] = []
     start_hub: Hub
@@ -53,13 +54,14 @@ class Map:
         self.hubs[name]
         neighs: set[str] = set()
         for edge in self.connections:
-            if name == edge.hub1:
+            if name == edge.hub1.id:
                 neighs.add(edge.hub2.id)
-            elif name == edge.hub2:
+            elif name == edge.hub2.id:
                 neighs.add(edge.hub1.id)
         return neighs
 
     def fill_map(self, map_data: MapData):
+        self.drones = map_data.nb_drones
         self.start_hub = map_data.start_hub
         self.add_hub(map_data.start_hub)
         hubs = map_data.hubs
@@ -128,10 +130,14 @@ class PathNode:
             return False
         name = self.hub.id
         node = self.next
+        while node and node.hub.id == name:
+            node = node.next
         while node:
             if node.hub.id == name:
                 return True
             node = node.next
+            if node is self.next:
+                break
         return False
 
     @staticmethod
@@ -172,9 +178,12 @@ class PathNode:
 
 
 class Algorithm:
-    def __init__(self, level: Map, drones: list[Drone]):
+    def __init__(self, level: Map):
         self.map = level
-        self.drones = drones
+        # self.drones = drones
+        self.drones: list[Drone] = []
+        for i in range(level.drones):
+            self.drones.append(Drone(i + 1, level.start_hub))
         self.plans: list[list[str]] = []
         self.reservations = Reservations()
         self.turns = 0
@@ -209,25 +218,34 @@ class Algorithm:
     def _occupied(self, fro: Hub, to: Hub, turn: int) -> bool:
         occupation = 0
         occupied = {"zone": False, "link": False}
+        # check vertex conflicts
         for plan in self.plans:
             if plan[turn] == to.id:
                 occupation += 1
                 if occupation == to.capacity:
                     occupied["zone"] = True
+                    break
         occupation = 0
         link = self.map.get_connection(fro.id, to.id)
+        # check edge conflicts
         for plan in self.plans:
+            # direct transit
             if plan[turn] == to.id and plan[turn - 1] == fro.id:
                 occupation += 1
                 if occupation == link.capacity:
                     occupied["link"] = True
+                    break
+            # reverse transit
             elif plan[turn] == fro.id and plan[turn - 1] == to.id:
                 occupation += 1
                 if occupation == link.capacity:
                     occupied["link"] = True
+                    break
+            # restricted transit
             elif plan[turn] == to.id and fro.id in plan[turn - 1].split('-'):
                 if occupation == link.capacity:
                     occupied["link"] = True
+                    break
         return True in occupied.values()
 
     def can_move(self, u: str, v: str, t: int):
@@ -278,6 +296,8 @@ class Algorithm:
         if fro == self.map.goal_hub:
             return False
         neighbours = self.map.neighbours(fro.id)
+        if not len(neighbours):
+            return False
         for name in neighbours:
             to = self.map.hub(name)
             if not self._occupied(fro, to, turn):
@@ -296,12 +316,12 @@ class Algorithm:
         f_list: dict[str, float] = {}
         g = 0
         # if no neighbours of start hub occupied, wait (redundant?)
-        while self._all_neighbours_occupied(start, g):
+        """while self._all_neighbours_occupied(start, g):
             g += 1
             node = PathNode(start)
             node.next = current
             node.g = g
-            current = node
+            current = node"""
         # init g & f score dictionaries
         for name, hub in self.map.hubs.items():
             g_list.update({name: inf})
@@ -312,8 +332,8 @@ class Algorithm:
             current = heapq.heappop(opened)[1]
             closed.add(current)
             # if current is goal, exit
-            if current.hub.id == self.map.goal_hub:
-                break
+            if current.hub.id == self.map.goal_hub.id:
+                return current
             # if all neighbours occupied, wait
             while self._all_neighbours_occupied(current.hub, g):
                 g += 1
@@ -454,6 +474,53 @@ class Algorithm:
 
     def solve(self) -> str:
         solution = ""
+        instructions: dict[int, list[str]] = {}
+        # get the movements for each drone
+        for drone in self.drones:
+            path: PathNode | None = self._a_star(self.map.start_hub)
+            # path is backwards
+            while path:
+                # if hub is the same as the last one inserted, wait
+                if len(drone.plan) and path.hub.id == drone.plan[-1]:
+                    drone.plan.insert(-1, "--wait--")
+                # if hub is restricted, drone is in connection
+                elif path.fro:
+                    drone.plan.append(f"{path.fro}.{path.hub}")
+                else:
+                    drone.plan.append(path.hub.id)
+                path = path.next
+            # reverse the path to make it time-direct
+            drone.plan.reverse()
+            self.plans.append(drone.plan)
+            instructions.update({drone.id: drone.plan})
+        i = 1
+        turn: list[str] = []
+        remove: list[int] = []
+        while instructions:
+            for n, plan in instructions.items():
+                try:
+                    # don't print waiting drones
+                    if plan[i] != "--wait--":
+                        turn.append(f"D{n}-{plan[i]}")
+                except IndexError:
+                    # if plan out of range, drone delivered
+                    remove.append(n)
+            # remove delivered drones
+            for n in remove:
+                instructions.pop(n)
+                if not len(instructions):
+                    return solution
+            # join dornes plans; newline means next turn
+            move = " ".join(turn)
+            solution += f"Turn {i}: " + move + "\n"
+            # next turn
+            i += 1
+            turn.clear()
+            remove.clear()
+        return solution
+
+    """def solve(self) -> str:
+        solution = ""
         optimal_path: PathNode | None = self._a_star(self.map.start_hub)
         optimal_plan: list[str] = []
         while optimal_path:
@@ -491,4 +558,4 @@ class Algorithm:
                 except IndexError:
                     if len(plan):
                         plan.clear()
-        return solution
+        return solution"""

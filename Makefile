@@ -1,6 +1,10 @@
 NAME = main.py
 
-PYTHON = python3
+VENV = .venv
+
+PYTHON = $(VENV)/bin/python3
+
+ACTIVATE = source .venv/bin/activate
 
 PIP = pip install
 
@@ -21,7 +25,7 @@ LINT = flake8 $(SOURCES) && mypy $(SOURCES)
 
 
 install:
-	$(PIP) $(REQUIREMENTS)
+	$(PYTHON) -m $(VENV) && $(ACTIVATE) && $(PIP) $(REQUIREMENTS)
 
 run:
 	$(PYTHON) $(NAME)
@@ -37,3 +41,5 @@ lint:
 
 lint-strict:
 	$(LINT) --strict
+
+.PHONY: install run debug clean lint lint-strict
