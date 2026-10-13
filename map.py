@@ -137,6 +137,15 @@ class PathNode:
     def __ge__(self, other: PathNode) -> bool:
         return False
 
+    def previous_hub(self) -> Hub:
+        current = self.hub.id
+        node = self.next
+        while node:
+            if node.hub.id != current:
+                return node.hub
+            node = node.next
+        return self.hub
+
     def hub_in_path(self) -> bool:
         if None in (self, self.next):
             return False
@@ -153,9 +162,9 @@ class PathNode:
         return False
 
     @staticmethod
-    def node_in_set(name: str, set: set[Any]) -> bool:
-        for node in set:
-            if node.hub.id == name:
+    def node_in_set(name: str, turn: int, set: set[tuple[str, int]]) -> bool:
+        for node, t in set:
+            if node == name and t == turn:
                 return True
         return False
 
@@ -215,7 +224,7 @@ class Algorithm:
             try:
                 if plan[turn] == to.id:
                     occupation += 1
-                    if occupation == to.capacity:
+                    if occupation >= to.capacity:
                         occupied["zone"] = True
                         break
             except IndexError:
@@ -228,18 +237,18 @@ class Algorithm:
                 # direct transit
                 if plan[turn] == to.id and plan[turn - 1] == fro.id:
                     occupation += 1
-                    if occupation == link.capacity:
+                    if occupation >= link.capacity:
                         occupied["link"] = True
                         break
                 # reverse transit
                 elif plan[turn] == fro.id and plan[turn - 1] == to.id:
                     occupation += 1
-                    if occupation == link.capacity:
+                    if occupation >= link.capacity:
                         occupied["link"] = True
                         break
                 # restricted transit
                 elif plan[turn] == to.id and fro.id in plan[turn - 1].split('-'):
-                    if occupation == link.capacity:
+                    if occupation >= link.capacity:
                         occupied["link"] = True
                         break
             except IndexError:
@@ -307,6 +316,108 @@ class Algorithm:
         """Possible enhancement: sum the weight of the drones to the heuristic"""
         # init open heap and closed set
         opened: list[tuple[float, PathNode]] = []
+        closed: set[tuple[str, int]] = set()
+        current = PathNode(start)
+        current.g = 0
+        heapq.heappush(opened, (current.f, current))
+        g_list: dict[tuple[str, int], float] = {}
+        f_list: dict[tuple[str, int], float] = {}
+        # g = 0
+        # while nodes in open heap
+        while len(opened):
+            current = heapq.heappop(opened)[1]
+            t = int(current.g)
+            t1 = t + 1
+            closed.add((current.hub.id, t))
+            # init g & f score dictionaries
+            for name, hub in self.map.hubs.items():
+                if not g_list.get((name, t1)):
+                    g_list.update({(name, t1): inf})
+                if not f_list.get((name, t1)):
+                    f_list.update({(name, t1): g_list[(name, t1)] + hub.heuristic})
+            # if current is goal, exit
+            if current.hub.id == self.map.goal_hub.id:
+                return current
+            # just a patch; need to resolve this issue for easy 02 later
+            prev = current.previous_hub()
+            if current.next and self._occupied(prev, current.hub, t1):
+                node = PathNode(current.hub)
+                node.next = current
+                node.g = t1
+                node.h = current.h
+                current = node
+                heapq.heappush(opened, (current.f, current))
+                continue
+            # if all neighbours occupied, wait
+            while self._all_neighbours_occupied(current.hub, t1):
+                t1 += 1
+                node = PathNode(current.hub)
+                node.next = current
+                node.g = t1
+                current = node
+            # check neighbours
+            for neighbour in self.map.neighbours(current.hub.id):
+                hub = self.map.hub(neighbour)
+                if hub.zone == "blocked":
+                    continue
+                if PathNode.node_in_set(hub.id, t1, closed):
+                    continue
+                # if occupied neighbour, check when it's gonna be free
+                if self._occupied(current.hub, hub, t1):
+                    free_in = self._next_turn_free(current.hub, hub, t1)
+                    node = current
+                    for _ in range(free_in):
+                        wait = PathNode(node.hub)
+                        wait.next = node
+                        wait.g = t1
+                        node = wait
+                # if restricted neighbour, occupy link
+                if hub.zone == "restricted":
+                    r_node = PathNode(hub, current.hub)
+                    r_node.next = current
+                    r_node.g = current.g + 1
+                    node = PathNode(hub)
+                    node.next = r_node
+                    node.g = r_node.g + 1
+                else:
+                    node = PathNode(hub)
+                    node.next = current
+                    node.g = t1
+                if not g_list.get((hub.id, t1)):
+                    g_list.update({(hub.id, t1): t1})
+                # compute heuristics
+                if node.hub == self.map.start_hub:
+                    node.h = inf
+                elif node.hub == self.map.goal_hub:
+                    node.h = 0
+                else:
+                    self._heuristic(node)
+                if not f_list.get((hub.id, t1)):
+                    f_list.update({(hub.id, t1): node.g + node.h})
+                # if shorter distance from start, update g
+                if node.g < g_list.get((node.hub.id, t1), inf):
+                    g_list.update({(node.hub.id, t1): node.g})
+                    f_list.update({(node.hub.id, t1): g_list[(node.hub.id, t1)] + node.h})
+                else:
+                    continue
+                # if better f cost, update
+                if node.f < f_list.get((node.hub.id, t1), inf) or not node.node_in_heap(
+                    hub.id, opened
+                ):
+                    f_list.update({(node.hub.id, t1): node.f})
+                    if not node.node_in_heap(hub.id, opened):
+                        heapq.heappush(opened, (node.f, node))
+        # if current hub is not goal, map has no solution
+        if current.hub != self.map.goal_hub:
+            raise MapError(
+                "map has no reachable solution from "
+                f"{self.map.start_hub.id} to {self.map.goal_hub.id}"
+            )
+        return current
+
+    """def _a_star(self, start: Hub) -> PathNode:
+        # init open heap and closed set
+        opened: list[tuple[float, PathNode]] = []
         closed: set[PathNode] = set()
         current = PathNode(start)
         current.g = 0
@@ -323,14 +434,19 @@ class Algorithm:
             g = int(current.g) + 1
             current = heapq.heappop(opened)[1]
             closed.add(current)
-            # just a patch; need to resolve this issue for easy 02 later
-            if current.next and self._occupied(current.next.hub, current.hub, g):
-                current.g += 1
-                heapq.heappush(opened, (current.f, current))
-                continue
             # if current is goal, exit
             if current.hub.id == self.map.goal_hub.id:
                 return current
+            # just a patch; need to resolve this issue for easy 02 later
+            prev = current.previous_hub()
+            if current.next and self._occupied(prev, current.hub, g):
+                node = PathNode(current.hub)
+                node.next = current
+                node.g = current.g + 1
+                node.h = current.h
+                current = node
+                heapq.heappush(opened, (current.f, current))
+                continue
             # if all neighbours occupied, wait
             while self._all_neighbours_occupied(current.hub, g):
                 g += 1
@@ -339,7 +455,7 @@ class Algorithm:
                 node.g = g
                 current = node
             # check neighbours
-            for neighbour in current.hub.connections:
+            for neighbour in self.map.neighbours(current.hub.id):
                 hub = self.map.hub(neighbour)
                 if hub.zone == "blocked":
                     continue
@@ -375,7 +491,7 @@ class Algorithm:
                     self._heuristic(node)
                 # if shorter distance from start, update g
                 if node.g < g_list[node.hub.id]:
-                    g_list.update({node.hub.id: g})
+                    g_list.update({node.hub.id: node.g})
                     f_list.update({hub.id: g_list[hub.id] + node.h})
                 else:
                     continue
@@ -392,7 +508,7 @@ class Algorithm:
                 "map has no reachable solution from "
                 f"{self.map.start_hub.id} to {self.map.goal_hub.id}"
             )
-        return current
+        return current"""
 
     def check_plans(self, drone: Drone) -> None:
         for older in self.drones:
@@ -485,7 +601,7 @@ class Algorithm:
                     drone.plan.insert(-1, "--wait--")
                 # if hub is restricted, drone is in connection
                 elif path.fro:
-                    drone.plan.append(f"{path.fro}.{path.hub}")
+                    drone.plan.append(f"{path.fro.id}-to-{path.hub.id}")
                 else:
                     drone.plan.append(path.hub.id)
                 path = path.next
