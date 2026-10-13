@@ -18,11 +18,11 @@ def main() -> None:
     except Exception as e:
         print(f"Caught Exception: {e}")
         return
-    print("Parsing was successful")
+    # print("Parsing was successful")
+    # print(data)
     map = Map()
     map.fill_map(data)
     algo = Algorithm(map)
-    # print("Solving...")
     print(algo.solve())
     draw_map(map, 100)
 

@@ -29,7 +29,7 @@ class Hub(BaseModel):
     capacity: int = Field(default=1, gt=0)
     occupation: int = 0
     connections: list[str] = []
-    heuristic: int = 1000000
+    heuristic: int = 0
 
     @model_validator(mode="after")
     def validate_name(self):

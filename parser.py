@@ -223,7 +223,7 @@ class Parser:
             raise ParsingError(f"invalid connection: {metadata[0]}")
         inst.update({"hub1": hubs[0]})
         inst.update({"hub2": hubs[1]})
-        if len(metadata) > 2:
+        if len(metadata) > 1:
             attr: list[list[str]] = []
             for data in metadata[1:]:
                 attribute = data.lstrip('[').rstrip(']').split('=')

@@ -125,6 +125,18 @@ class PathNode:
         self._f: float = 1e12
         self.next: PathNode | None = None
 
+    def __lt__(self, other: PathNode) -> bool:
+        return False
+
+    def __le__(self, other: PathNode) -> bool:
+        return False
+
+    def __gt__(self, other: PathNode) -> bool:
+        return False
+
+    def __ge__(self, other: PathNode) -> bool:
+        return False
+
     def hub_in_path(self) -> bool:
         if None in (self, self.next):
             return False
@@ -195,57 +207,43 @@ class Algorithm:
                 return node
         raise AttributeError(f"{name} not in set")
 
-    """def _occupied_zone(self, hub: Hub, turn: int) -> bool:
-        occupation = 0
-        for plan in self.plans:
-            if plan[turn] == hub.id:
-                occupation += 1
-                if occupation == hub.capacity:
-                    return True
-        return False
-
-    def _occupied_link(self, fro: Hub, to: Hub, turn: int) -> bool:
-        if self._occupied_zone(to, turn):
-            return True
-        occupation = 0
-        for plan in self.plans:
-            if plan[turn] == fro.id and plan[turn - 1] == to.id:
-                occupation += 1
-                if occupation == self.map.get_connection(fro.id, to.id).capacity:
-                    return True
-        return False"""
-
     def _occupied(self, fro: Hub, to: Hub, turn: int) -> bool:
         occupation = 0
         occupied = {"zone": False, "link": False}
         # check vertex conflicts
         for plan in self.plans:
-            if plan[turn] == to.id:
-                occupation += 1
-                if occupation == to.capacity:
-                    occupied["zone"] = True
-                    break
+            try:
+                if plan[turn] == to.id:
+                    occupation += 1
+                    if occupation == to.capacity:
+                        occupied["zone"] = True
+                        break
+            except IndexError:
+                pass
         occupation = 0
         link = self.map.get_connection(fro.id, to.id)
         # check edge conflicts
         for plan in self.plans:
-            # direct transit
-            if plan[turn] == to.id and plan[turn - 1] == fro.id:
-                occupation += 1
-                if occupation == link.capacity:
-                    occupied["link"] = True
-                    break
-            # reverse transit
-            elif plan[turn] == fro.id and plan[turn - 1] == to.id:
-                occupation += 1
-                if occupation == link.capacity:
-                    occupied["link"] = True
-                    break
-            # restricted transit
-            elif plan[turn] == to.id and fro.id in plan[turn - 1].split('-'):
-                if occupation == link.capacity:
-                    occupied["link"] = True
-                    break
+            try:
+                # direct transit
+                if plan[turn] == to.id and plan[turn - 1] == fro.id:
+                    occupation += 1
+                    if occupation == link.capacity:
+                        occupied["link"] = True
+                        break
+                # reverse transit
+                elif plan[turn] == fro.id and plan[turn - 1] == to.id:
+                    occupation += 1
+                    if occupation == link.capacity:
+                        occupied["link"] = True
+                        break
+                # restricted transit
+                elif plan[turn] == to.id and fro.id in plan[turn - 1].split('-'):
+                    if occupation == link.capacity:
+                        occupied["link"] = True
+                        break
+            except IndexError:
+                pass
         return True in occupied.values()
 
     def can_move(self, u: str, v: str, t: int):
@@ -279,7 +277,8 @@ class Algorithm:
         return max(plan_len) - since
 
     def _heuristic(self, node: PathNode) -> None:
-        node.h = node.hub.heuristic
+        occupancy = self.hub_occupation(node.hub.id, int(node.g))
+        node.h = node.hub.heuristic + occupancy / node.hub.capacity
         if node.hub_in_path():
             node.h += 5
         zone = node.hub.zone
@@ -315,13 +314,6 @@ class Algorithm:
         g_list: dict[str, float] = {}
         f_list: dict[str, float] = {}
         g = 0
-        # if no neighbours of start hub occupied, wait (redundant?)
-        """while self._all_neighbours_occupied(start, g):
-            g += 1
-            node = PathNode(start)
-            node.next = current
-            node.g = g
-            current = node"""
         # init g & f score dictionaries
         for name, hub in self.map.hubs.items():
             g_list.update({name: inf})
@@ -331,6 +323,11 @@ class Algorithm:
             g = int(current.g) + 1
             current = heapq.heappop(opened)[1]
             closed.add(current)
+            # just a patch; need to resolve this issue for easy 02 later
+            if current.next and self._occupied(current.next.hub, current.hub, g):
+                current.g += 1
+                heapq.heappush(opened, (current.f, current))
+                continue
             # if current is goal, exit
             if current.hub.id == self.map.goal_hub.id:
                 return current
@@ -411,8 +408,11 @@ class Algorithm:
             raise ValueError(f"Cannot measure occupation in {name}")
         occupation = 0
         for plan in self.plans:
-            if plan[turn] == name:
-                occupation += 1
+            try:
+                if plan[turn] == name:
+                    occupation += 1
+            except IndexError:
+                pass
         return occupation
 
     def edge_traffic(self, fro: str, to: str, turn: int) -> int:
@@ -518,44 +518,3 @@ class Algorithm:
             turn.clear()
             remove.clear()
         return solution
-
-    """def solve(self) -> str:
-        solution = ""
-        optimal_path: PathNode | None = self._a_star(self.map.start_hub)
-        optimal_plan: list[str] = []
-        while optimal_path:
-            if optimal_path.hub.id == optimal_plan[-1]:
-                optimal_plan.insert(-1, "--wait--")
-            elif optimal_path.fro:
-                optimal_plan.append(f"{optimal_path.fro}-{optimal_path.hub}")
-            else:
-                optimal_plan.append(optimal_path.hub.id)
-            optimal_path = optimal_path.next
-        optimal_plan.reverse()
-        for i in range(len(optimal_plan) - 1):
-            if self.map.hub(optimal_plan[i]).zone == "restricted":
-                try:
-                    optimal_plan.insert(
-                        i, f"{self.map.hub(optimal_plan[i - 1])}"
-                        f"-{self.map.hub(optimal_plan[i])}"
-                    )
-                except IndexError:
-                    optimal_plan.insert(
-                        i, f"{self.map.start_hub.id}"
-                        f"-{self.map.hub(optimal_plan[i])}"
-                    )
-        for drone in self.drones:
-            if not drone.plan:
-                drone.plan = optimal_plan
-            # self.manage_conflicts(drone)
-            self.plans.append(drone.plan)
-        for turn in range(max([len(plan) for plan in self.plans])):
-            for plan in self.plans:
-                if not len(plan) or plan[turn] == "--wait--":
-                    continue
-                try:
-                    solution += f"D{self.plans.index(plan) + 1}-{plan[turn]}"
-                except IndexError:
-                    if len(plan):
-                        plan.clear()
-        return solution"""
