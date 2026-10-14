@@ -6,14 +6,6 @@ from enum import Enum
 from typing import Any
 
 
-"""
-class Position:
-    def __init__(self, pos: tuple[int, int]) -> None:
-        self.x = pos[0]
-        self.y = pos[1]
-"""
-
-
 class Zone(str, Enum):
     BLOCKED = "blocked"
     RESTRICTED = "restricted"
@@ -214,14 +206,3 @@ class MapData(BaseModel):
                         f"{self.connections[i].hub2.id}"
                     )
         return self
-
-
-"""
-class Simulation:
-    def __init__(
-        self, level: Map, drones: int, start: Hub = None, goal: Hub = None
-    ) -> None:
-        self._map = level
-        self._drones: list[Drone] = drones
-        self._start = self._map._hubs
-"""

@@ -127,6 +127,8 @@ class Scene:  # (pygame.Surface):
 def draw_map(level: Map, scale: int):
     pygame.init()
     pygame.display.set_caption("Fly-in")
+    drone_surface = pygame.image.load("graphics/drone1.png")
+    pygame.display.set_icon(drone_surface)
     screen = pygame.display.set_mode((1200, 800))
     scene = Scene(screen, 1200, 800, level)
     clock = pygame.time.Clock()
@@ -166,104 +168,3 @@ def draw_map(level: Map, scale: int):
         pygame.display.update()
         clock.tick(60)
     pygame.quit()
-
-
-def main() -> None:
-    # pygame setup
-    pygame.init()
-    screen = pygame.display.set_mode((800, 600))
-    pygame.display.set_caption("Fly-in")
-    clock = pygame.time.Clock()
-    # my_font = pygame.font.Font(None, 64)
-    running = True
-    # hub = pygame.image.load("graphics/hub.png")
-    # ground = pygame.Surface((800,600))
-    # ground.fill("purple")
-    next_color = rainbow()
-    # color = pygame.Color()
-    #  text = my_font.render(chr(9773), False, "yellow")
-    # hub.fill("red")
-
-    nodes = {
-        "A": (200, 300),
-        "B": (600, 300)
-    }
-    edges = [("A", "B")]
-    mouse_x, mouse_y = pygame.mouse.get_pos()
-    zoom = 1.
-    camera_x, camera_y = 0, 0
-    world_x = mouse_x / zoom + camera_x
-    world_y = mouse_y / zoom + camera_y
-    dragging = False
-    last_mouse = None
-
-    while running:
-        # poll for events
-        # pygame.QUIT event means the user clicked X to close the window
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            
-            elif event.type == pygame.MOUSEWHEEL:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                world_x = mouse_x / zoom + camera_x
-                world_y = mouse_y / zoom + camera_y
-                if event.y > 0:
-                    zoom *= 1.1
-                else:
-                    zoom /= 1.1
-                zoom = max(.2, min(zoom, 5.))
-                camera_x = world_x - mouse_x / zoom
-                camera_y = world_y - mouse_y / zoom
-
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    dragging = True
-                    last_mouse = pygame.mouse.get_pos()
-
-            elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:
-                    dragging = False
-
-            elif event.type == pygame.MOUSEMOTION:
-                if dragging:
-                    mouse_x, mouse_y = event.pos
-                    dx = mouse_x - last_mouse[0]
-                    dy = mouse_y - last_mouse[1]
-                    camera_x -= dx / zoom
-                    camera_y -= dy / zoom
-                    last_mouse = (mouse_x, mouse_y)
-
-        # fill the screen with color to wipe anything from last frame
-        screen.fill("black")
-
-        # RENDER YOUR GAME HERE
-        # screen.blit(ground, (0,0))
-        # pygame.draw.line(screen, "black", (0,0), (800,600), 3)
-        # pygame.draw.circle(screen, "red", (400,300), 100)
-        for a, b in edges:
-            ax, ay = nodes[a]
-            bx, by = nodes[b]
-            ax = (ax - camera_x) * zoom
-            ay = (ay - camera_y) * zoom
-            bx = (bx - camera_x) * zoom
-            by = (by - camera_y) * zoom
-            pygame.draw.line(screen, "green", (ax, ay), (bx, by), max(1, int(3 * zoom)))
-        for name, (x, y) in nodes.items():
-            screen_x = (x - camera_x) * zoom
-            screen_y = (y - camera_y) * zoom
-            radius = max(5, int(50 * zoom))
-            pygame.draw.circle(screen, "white", (screen_x, screen_y), radius)
-        # screen.blit(hub, (300,250))
-        # screen.blit(text, (350,280))
-
-        # flip() the display to put your work on screen
-        pygame.display.flip()  # pygame.display.update()
-
-        clock.tick(60)  # limits FPS to 30
-
-    pygame.quit()
-
-
-if __name__ == "__main__":
-    main()
