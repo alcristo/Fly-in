@@ -5,7 +5,7 @@ from map import Map, Algorithm
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/easy/02_simple_fork.txt"
+    path = "./maps/medium/03_priority_puzzle.txt"
     # parser.parse(path)
     try:
         data = parser.parse(path)

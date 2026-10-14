@@ -257,7 +257,10 @@ class Algorithm:
         if u == v:
             return False
         to = self.map.hub(v)
-        to_cap = to.capacity
+        if to == self.map.goal_hub:
+            to_cap = self.map.drones
+        else:
+            to_cap = to.capacity
         to_occ = self.reservations.vertex_occupancy.get(t, {}).get(v, 0)
         edge_cap = self.map.get_connection(u, v).capacity
         edge_occ = self.reservations.edge_occupancy.get(t, {}).get(
@@ -266,7 +269,7 @@ class Algorithm:
         if to_occ >= to_cap:
             if to.zone == "restricted":
                 if self.reservations.vertex_occupancy.get(
-                    t + 1, {}
+                    t, {}
                 ).get(v, 0) >= to_cap:
                     return False
             else:
