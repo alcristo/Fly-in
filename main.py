@@ -1,11 +1,11 @@
 from parser import Parser, ParsingError
 from map import Map, Algorithm
-# from map_draw import draw_map
+from map_draw import draw_map
 
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/medium/03_priority_puzzle.txt"
+    path = "./maps/medium/02_circular_loop.txt"
     # parser.parse(path)
     try:
         data = parser.parse(path)
@@ -24,7 +24,7 @@ def main() -> None:
     map.fill_map(data)
     algo = Algorithm(map)
     print(algo.solve())
-    # draw_map(map, 100)
+    draw_map(map, 100)
 
 
 if __name__ == "__main__":

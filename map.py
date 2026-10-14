@@ -3,6 +3,7 @@ from models import Hub, Connection, MapData
 from exceptions import NodeError, EdgeError, MapError
 from typing import Any
 from math import inf, sqrt
+from time import sleep
 import heapq
 
 
@@ -269,7 +270,7 @@ class Algorithm:
         if to_occ >= to_cap:
             if to.zone == "restricted":
                 if self.reservations.vertex_occupancy.get(
-                    t, {}
+                    t + 1, {}
                 ).get(v, 0) >= to_cap:
                     return False
             else:
@@ -304,7 +305,7 @@ class Algorithm:
         zone = node.hub.zone
         if zone == "priority":
             node.h -= .1
-        else:
+        elif zone == "blocked":
             node.h += inf
 
     def _all_neighbours_occupied(self, fro: Hub, turn: int) -> bool:
@@ -409,6 +410,7 @@ class Algorithm:
                     f_list.update({(node.hub.id, node.g): node.f})
                     if not node.node_in_heap(hub.id, opened):
                         heapq.heappush(opened, (node.f, node))
+            # sleep(1)
         # if current hub is not goal, map has no solution
         if current.hub != self.map.goal_hub:
             raise MapError(
@@ -589,16 +591,22 @@ class Algorithm:
     def _update_reservations(self, node: PathNode) -> None:
         if not self.reservations.vertex_occupancy.get(node.g):
             self.reservations.vertex_occupancy.update({node.g: {}})
-        if not node.fro:
-            self._add_reservation(
-                self.reservations.vertex_occupancy[node.g], node.hub.id
-            )
         if not self.reservations.edge_occupancy.get(node.g):
             self.reservations.edge_occupancy.update({node.g: {}})
-        self._add_reservation(
-            self.reservations.edge_occupancy[node.g],
-            undirected_edge(node.previous_hub().id, node.hub.id)
-        )
+        if node.fro:
+            self._add_reservation(
+                self.reservations.edge_occupancy[node.g],
+                undirected_edge(node.fro.id, node.hub.id)
+            )
+        else:
+            if not node.fro:
+                self._add_reservation(
+                    self.reservations.vertex_occupancy[node.g], node.hub.id
+                )
+            self._add_reservation(
+                self.reservations.edge_occupancy[node.g],
+                undirected_edge(node.previous_hub().id, node.hub.id)
+            )
 
     def solve(self) -> str:
         solution = ""
@@ -610,7 +618,7 @@ class Algorithm:
             while path:
                 # if hub is restricted, drone is in connection
                 if path.fro:
-                    drone.plan.append(f"{path.fro.id}-to-{path.hub.id}")
+                    drone.plan.append(f"{path.fro.id}→{path.hub.id}")
                 # if hub is the same as the last one inserted, wait
                 elif len(drone.plan) and path.hub.id == drone.plan[-1]:
                     drone.plan.insert(-1, "--wait--")
