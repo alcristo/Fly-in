@@ -25,7 +25,7 @@ def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
 
 def main() -> None:
     parser = Parser()
-    path = "./maps/test/easy/01_linear_path.txt"
+    path = "./maps/test/medium/02_circular_loop.txt"
     # parser.parse(path)
     try:
         data = parser.parse(path)
