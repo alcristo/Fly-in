@@ -1,7 +1,7 @@
 import pygame
 from map import Map
 from typing import Callable
-from math import atan2, pi, sin, cos
+from math import atan2, pi, sin, cos, hypot
 
 
 """
@@ -35,6 +35,7 @@ class GraphicDrone:
         self.last_pos = start
         self.rotation: float = 0
         self.flight = False
+        self.restricted_ending = False
         self.turn = 0
 
     def point_square(self, dx: float, dy: float) -> None:
@@ -111,14 +112,18 @@ class Scene:
         for i in range(len(self.drones)):
             drone = self.drones[i]
             if drone.steps[self.turn]:
-                drone.point_to(self.map.hub(drone.steps[self.turn]).position)
+                if '→' in drone.steps[self.turn]:
+                    to = drone.steps[self.turn].split('→')[1]
+                else:
+                    to = drone.steps[self.turn]
+                drone.point_to(self.map.hub(to).position)
             x = drone.position[0] * scale + self.zerozero[0]
             y = -drone.position[1] * scale + self.zerozero[1]
             screen_x = (x - self.cam_x) * self.lens
             screen_y = (y - self.cam_y) * self.lens
             size = max(5, 50 * self.lens)
             sprite = pygame.transform.smoothscale(drone.rot_sprite, (size, size))
-            rect = sprite.get_rect(center=(round(screen_x), round(screen_y)))
+            rect = sprite.get_rect(center=(round(screen_x, 2), round(screen_y, 2)))
             self.surface.blit(sprite, rect)
 
     def draw_map(self, scale: float) -> None:
@@ -201,18 +206,28 @@ class Scene:
                 continue
             if not drone.flight:
                 drone.flight = True
-            drone.last_pos = drone.position
             x, y = drone.position
             dr = v * dt
+            if to.zone == "restricted":
+                dr /= 2
+                # print(to.position)
+                try:
+                    if '→' in drone.steps[self.turn]:
+                        fro = self.map.hub(drone.steps[self.turn - 1])
+                except IndexError:
+                    fro = self.map.start_hub
             dx, dy = dr * cos(drone.rotation * pi / 180), dr * sin(drone.rotation * pi / 180)
             x += dx
             y += dy
-            if abs(to.position[0] - x) < 1e-1:
+            if abs(to.position[0] - x) < 5e-2:
                 x = to.position[0]
-            if abs(to.position[1] - y) < 1e-1:
+            if abs(to.position[1] - y) < 5e-2:
                 y = to.position[1]
             drone.position = x, y
-            if drone.position == to.position:
+            point = to.position
+            if to.zone == "restricted" and '→' in drone.steps[self.turn]:
+                point = ((to.position[0] + fro.position[0]) / 2, (to.position[1] + fro.position[1]) / 2)
+            if hypot(drone.position[0] - point[0], drone.position[1] - point[1]) < 5e-2:
                 drone.flight = False
                 drone.turn += 1
 
