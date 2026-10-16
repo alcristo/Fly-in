@@ -1,6 +1,7 @@
 from parser import Parser, ParsingError
 from map import Map, Algorithm
 from map_draw import draw_map
+import pygame
 
 
 def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
@@ -25,6 +26,7 @@ def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
 
 def menu() -> str:
     print("\x1b[H\x1b[0J", end="")
+    print(rainbow_text("Fly-in"))
     print("DEFAULT MAPS\n")
     print("Easy maps")
     print("1: Linear Path")
@@ -72,6 +74,74 @@ def menu() -> str:
     return path
 
 
+def rainbow_text(text: str) -> str:
+    rainbow_str: list[str] = []
+    reset = "\x1b[0m"
+    rainbow_list = [
+        "\x1b[91m",
+        "\x1b[93m",
+        "\x1b[92m",
+        "\x1b[96m",
+        "\x1b[94m",
+        "\x1b[95m",
+    ]
+    i = 0
+    for c in text:
+        rainbow_str.append(f"{rainbow_list[i]}{c}{reset}")
+        if not c.isspace():
+            i = (i + 1) % len(rainbow_list)
+    return "".join(rainbow_str)
+
+
+def print_solution(solution: str, map: Map) -> None:
+    lines = solution.splitlines()
+    reset = "\x1b[0m"
+    for line in lines:
+        turn = line.split(': ')[1].split(' ')
+        colorline: list[str] = []
+        for inst in turn:
+            order = inst.split('-')
+            cline: list[str] = []
+            if '→' in order[1]:
+                ids = order[1].split('→')
+                fro = map.hub(ids[0])
+                to = map.hub(ids[1])
+                if fro.color == "rainbow":
+                    cline.append(rainbow_text(ids[0]))
+                else:
+                    try:
+                        c1 = pygame.Color(fro.color)
+                    except pygame.error:
+                        c1 = pygame.Color("white")
+                    color1 = (c1.r, c1.g, c1.b)
+                    form1 = f"\x1b[38;2;{color1[0]};{color1[1]};{color1[2]}m"
+                    cline.append(f"{form1}{ids[0]}{reset}")
+                if to.color == "rainbow":
+                    cline.append(rainbow_text(ids[1]))
+                else:
+                    try:
+                        c2 = pygame.Color(to.color)
+                    except pygame.error:
+                        c2 = pygame.Color("white")
+                    color2 = (c2.r, c2.g, c2.b)
+                    form2 = f"\x1b[38;2;{color2[0]};{color2[1]};{color2[2]}m"
+                    cline.append(f"{order[0]}-{form2}{ids[1]}{reset}")
+                    colorline.append(f"{cline[0]}→{cline[1]}")
+            else:
+                hub = map.hub(order[1])
+                if hub.color == "rainbow":
+                    colorline.append(f"{order[0]}-{rainbow_text(order[1])}")
+                else:
+                    try:
+                        c = pygame.Color(hub.color)
+                    except pygame.error:
+                        c = pygame.Color("white")
+                    color = (c.r, c.g, c.b)
+                    form = f"\x1b[38;2;{color[0]};{color[1]};{color[2]}m"
+                    colorline.append(f"{order[0]}-{form}{order[1]}{reset}")
+        print(' '.join(colorline))
+
+
 def main() -> None:
     path = menu()
     parser = Parser()
@@ -92,7 +162,7 @@ def main() -> None:
     algo = Algorithm(map)
     solution = algo.solve()
     print()
-    print(solution)
+    print_solution(solution, map)
     parsed_sol = parse_solution(solution, map.drones)
     draw_map(map, parsed_sol, 100)
 
