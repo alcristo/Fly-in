@@ -3,7 +3,6 @@ import pygame
 from pydantic import BaseModel, Field, model_validator
 from exceptions import NodeError, EdgeError, MapError
 from enum import Enum
-from typing import Any
 
 
 class Zone(str, Enum):
