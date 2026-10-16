@@ -125,8 +125,11 @@ def print_solution(solution: str, map: Map) -> None:
                         c2 = pygame.Color("white")
                     color2 = (c2.r, c2.g, c2.b)
                     form2 = f"\x1b[38;2;{color2[0]};{color2[1]};{color2[2]}m"
-                    cline.append(f"{order[0]}-{form2}{ids[1]}{reset}")
-                    colorline.append(f"{cline[0]}→{cline[1]}")
+                    cline.append(f"{form2}{ids[1]}{reset}")
+                    colorline.append(
+                        f"{order[0]}-"
+                        f"{cline[0]}→{cline[1]}"
+                    )
             else:
                 hub = map.hub(order[1])
                 if hub.color == "rainbow":
