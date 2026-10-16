@@ -26,7 +26,6 @@ def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
 def main() -> None:
     parser = Parser()
     path = "./maps/challenger/01_the_impossible_dream.txt"
-    # parser.parse(path)
     try:
         data = parser.parse(path)
     except ParsingError as e:
@@ -38,8 +37,6 @@ def main() -> None:
     except Exception as e:
         print(f"Caught Exception: {e}")
         return
-    # print("Parsing was successful")
-    # print(data)
     map = Map()
     map.fill_map(data)
     algo = Algorithm(map)
@@ -47,9 +44,6 @@ def main() -> None:
     print()
     print(solution)
     parsed_sol = parse_solution(solution, map.drones)
-    print()
-    for i, orders in parsed_sol.items():
-        print(f"{i}: {' '.join(orders)}")
     draw_map(map, parsed_sol, 100)
 
 

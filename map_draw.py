@@ -1,7 +1,7 @@
 import pygame
 from map import Map
 from typing import Callable
-from math import atan2, pi, sin, cos, sqrt
+from math import atan2, pi
 
 
 """
@@ -230,7 +230,7 @@ class Scene:
                 radius,
                 max(1, int(2 * self.lens))
             )
-            self.draw_drones(scale)
+        self.draw_drones(scale)
 
     def move_drones(self, dt: float):
         if self.turn >= len(self.drones[0].steps):
@@ -275,7 +275,6 @@ class Scene:
                     fro_id = drone.steps[self.turn - 1]
             fro = self.map.hub(fro_id)
             to = self.map.hub(to_id)
-            print(f"{fro_id}-{to_id}")
             drone.start_move(fro.position, to.position, duration)
             drone.move_duration_turns = duration
         done = all(
@@ -307,8 +306,8 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
     pygame.display.set_caption("Fly-in")
     drone_surface = pygame.image.load("graphics/drone1.png")
     pygame.display.set_icon(drone_surface)
-    screen = pygame.display.set_mode((1200, 800))
-    scene = Scene(screen, 1200, 800, level, solution)
+    screen = pygame.display.set_mode((3000, 1500))
+    scene = Scene(screen, 3000, 1500, level, solution)
     play_img = pygame.image.load("graphics/play.png")
     pause_img = pygame.image.load("graphics/pause.png")
     replay_img = pygame.image.load("graphics/replay.png")
@@ -324,7 +323,6 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
     pause = True
     running = True
     fps = 60
-    v = 3
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
