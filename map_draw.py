@@ -1,7 +1,7 @@
 import pygame
 from map import Map
 from typing import Callable
-from math import atan2, pi, sin, cos, hypot
+from math import atan2, pi, sin, cos, sqrt
 
 
 """
@@ -27,16 +27,25 @@ def rainbow() -> Callable[[float], pygame.Color]:
 
 
 class GraphicDrone:
-    def __init__(self, path: str, orders: list[str], start: tuple[float, float]) -> None:
+    def __init__(
+        self,
+        path: str,
+        orders: list[str],
+        start: tuple[float, float]
+    ) -> None:
         self.orig_sprite = pygame.image.load(path)
         self.rot_sprite = pygame.image.load(path)
         self.steps = orders
         self.position = start
-        self.last_pos = start
         self.rotation: float = 0
-        self.flight = False
-        self.restricted_ending = False
+        self.fro = start
+        self.to = start
+        self.progress = .0
+        self.duration = 1.
+        self.moving = False
         self.turn = 0
+        self.action_end_turn = 0
+        self.move_duration_turns = 0
 
     def point_square(self, dx: float, dy: float) -> None:
         if dx == 0 and dy == 0:
@@ -51,17 +60,23 @@ class GraphicDrone:
             )
         if dx == 0:
             if dy > 0:
-                self.rot_sprite = pygame.transform.rotate(self.orig_sprite, 90)
+                self.rot_sprite = pygame.transform.rotate(
+                    self.orig_sprite, 90
+                )
                 self.rotation = 90
             else:
-                self.rot_sprite = pygame.transform.rotate(self.orig_sprite, 270)
+                self.rot_sprite = pygame.transform.rotate(
+                    self.orig_sprite, 270
+                )
                 self.rotation = 270
         else:
             if dx > 0:
                 self.rot_sprite = self.orig_sprite
                 self.rotation = 0
             else:
-                self.rot_sprite = pygame.transform.rotate(self.orig_sprite, 180)
+                self.rot_sprite = pygame.transform.rotate(
+                    self.orig_sprite, 180
+                )
                 self.rotation = 180
 
     def point_to(self, to: tuple[float, float]) -> None:
@@ -74,6 +89,31 @@ class GraphicDrone:
             return self.point_square(dx, dy)
         self.rot_sprite = pygame.transform.rotate(self.orig_sprite, angle)
         self.rotation = angle % 360
+
+    def start_move(
+        self,
+        fro: tuple[float, float],
+        to: tuple[float, float],
+        duration: float
+    ) -> None:
+        self.fro = fro
+        self.to = to
+        self.progress = 0
+        self.duration = duration
+        self.point_to(to)
+        self.moving = True
+
+    def update_move(self, dt: float) -> None:
+        if not self.moving:
+            return
+        self.progress = min(1., self.progress + dt / self.duration)
+        t = self.progress
+        x = self.fro[0] * (1 - t) + self.to[0] * t
+        y = self.fro[1] * (1 - t) + self.to[1] * t
+        self.position = (x, y)
+        if self.progress >= 1:
+            self.moving = False
+            self.position = self.to
 
 
 class Scene:
@@ -122,8 +162,12 @@ class Scene:
             screen_x = (x - self.cam_x) * self.lens
             screen_y = (y - self.cam_y) * self.lens
             size = max(5, 50 * self.lens)
-            sprite = pygame.transform.smoothscale(drone.rot_sprite, (size, size))
-            rect = sprite.get_rect(center=(round(screen_x, 2), round(screen_y, 2)))
+            sprite = pygame.transform.smoothscale(
+                drone.rot_sprite, (size, size)
+            )
+            rect = sprite.get_rect(
+                center=(round(screen_x, 2), round(screen_y, 2))
+            )
             self.surface.blit(sprite, rect)
 
     def draw_map(self, scale: float) -> None:
@@ -188,55 +232,73 @@ class Scene:
             )
             self.draw_drones(scale)
 
-    def move_drones(self, v: float, dt: float):
+    def move_drones(self, dt: float):
         if self.turn >= len(self.drones[0].steps):
-            self.turn = len(self.drones[0].steps) - 1
             return
-        for i in range(len(self.drones)):
-            drone = self.drones[i]
-            if '→' in drone.steps[self.turn]:
-                to = self.map.hub(drone.steps[self.turn].split('→')[1])
-            else:
-                to = self.map.hub(drone.steps[self.turn])
-            if drone.position == to.position and drone.steps[self.turn] == to.id:
-                continue
-            if not drone.steps[self.turn]:
-                continue
+        for drone in self.drones:
+            if drone.moving:
+                drone.update_move(dt)
+                if not drone.moving:
+                    drone.turn += 1
+        for drone in self.drones:
             if drone.turn != self.turn:
                 continue
-            if not drone.flight:
-                drone.flight = True
-            x, y = drone.position
-            dr = v * dt
-            if to.zone == "restricted":
-                dr /= 2
-                # print(to.position)
-                try:
-                    if '→' in drone.steps[self.turn]:
-                        fro = self.map.hub(drone.steps[self.turn - 1])
-                except IndexError:
-                    fro = self.map.start_hub
-            dx, dy = dr * cos(drone.rotation * pi / 180), dr * sin(drone.rotation * pi / 180)
-            x += dx
-            y += dy
-            if abs(to.position[0] - x) < 5e-2:
-                x = to.position[0]
-            if abs(to.position[1] - y) < 5e-2:
-                y = to.position[1]
-            drone.position = x, y
-            point = to.position
-            if to.zone == "restricted" and '→' in drone.steps[self.turn]:
-                point = ((to.position[0] + fro.position[0]) / 2, (to.position[1] + fro.position[1]) / 2)
-            if hypot(drone.position[0] - point[0], drone.position[1] - point[1]) < 5e-2:
-                drone.flight = False
+            if self.turn < drone.action_end_turn:
+                continue
+            order = drone.steps[self.turn]
+            duration = 1
+            if not order or drone.position == self.map.goal_hub.position:
+                drone.turn = self.turn + 1
+                drone.action_end_turn = self.turn + 1
+                continue
+            drone.move_duration_turns = 1
+            if drone.moving:
+                continue
+            if '→' in order:
+                fro_id, to_id = order.split('→')
+                duration *= 2
+                drone.move_duration_turns *= 2
                 drone.turn += 1
+            else:
+                to_id = order
+                if self.turn == 0 or not drone.steps[self.turn - 1]:
+                    i = self.turn - 1
+                    while i > 0 and not drone.steps[i]:
+                        i -= 1
+                    if i <= 0:
+                        fro_id = self.map.start_hub.id
+                    else:
+                        fro_id = drone.steps[i]
+                elif '→' in drone.steps[self.turn - 1]:
+                    fro_id = drone.steps[self.turn - 1].split('→')[1]
+                else:
+                    fro_id = drone.steps[self.turn - 1]
+            fro = self.map.hub(fro_id)
+            to = self.map.hub(to_id)
+            print(f"{fro_id}-{to_id}")
+            drone.start_move(fro.position, to.position, duration)
+            drone.move_duration_turns = duration
+        done = all(
+            drone.turn > self.turn
+            or (
+                not drone.moving
+                and drone.action_end_turn <= self.turn
+            ) for drone in self.drones
+        )
+        if done:
+            self.turn += 1
 
     def restart(self):
         for drone in self.drones:
             drone.position = self.map.start_hub.position
             drone.rotation = 0
-            drone.flight = False
+            drone.moving = False
             drone.turn = 0
+            drone.progress = 0
+            drone.fro = self.map.start_hub.position
+            drone.to = self.map.start_hub.position
+            drone.action_end_turn = 0
+            drone.move_duration_turns = 0
         self.turn = 0
 
 
@@ -245,7 +307,7 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
     pygame.display.set_caption("Fly-in")
     drone_surface = pygame.image.load("graphics/drone1.png")
     pygame.display.set_icon(drone_surface)
-    screen = pygame.display.set_mode((1200, 600))
+    screen = pygame.display.set_mode((1200, 800))
     scene = Scene(screen, 1200, 800, level, solution)
     play_img = pygame.image.load("graphics/play.png")
     pause_img = pygame.image.load("graphics/pause.png")
@@ -254,7 +316,10 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
     x_img = screen.get_size()[0] - button_size[0]
     y_img = screen.get_size()[1] - button_size[1]
     play = pygame.Rect(x_img, y_img, button_size[0], button_size[1])
-    replay = pygame.Rect(x_img - button_size[0] - 1, y_img, button_size[0], button_size[1])
+    replay = pygame.Rect(
+        x_img - button_size[0] - 1,
+        y_img, button_size[0], button_size[1]
+    )
     clock = pygame.time.Clock()
     pause = True
     running = True
@@ -280,8 +345,9 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
                     if play.collidepoint(event.pos):
                         pause = not pause
                     elif replay.collidepoint(event.pos):
-                        if pause:
-                            scene.restart()
+                        if not pause:
+                            pause = not pause
+                        scene.restart()
                     else:
                         scene.drag = True
                         scene.last_mouse_pos = pygame.mouse.get_pos()
@@ -298,14 +364,12 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
                     scene.last_mouse_pos = (scene.mouse_x, scene.mouse_y)
         screen.fill("lightgray")
         if not pause:
-            scene.move_drones(v, 1 / 60)
+            scene.move_drones(2 / fps)
         scene.draw_map(scale)
         if pause is True:
             screen.blit(play_img, (x_img, y_img))
         else:
             screen.blit(pause_img, (x_img, y_img))
-            if True not in [i.flight for i in scene.drones]:
-                scene.turn += 1
         screen.blit(replay_img, (x_img - button_size[0], y_img))
         pygame.display.update()
         clock.tick(fps)
