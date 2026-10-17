@@ -319,6 +319,7 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
         x_img - button_size[0] - 1,
         y_img, button_size[0], button_size[1]
     )
+    font = pygame.font.Font(None, 32)
     clock = pygame.time.Clock()
     pause = True
     running = True
@@ -364,11 +365,15 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
         if not pause:
             scene.move_drones(2 / fps)
         scene.draw_map(scale)
+        t_rect = pygame.Rect(3000 - 150, 0, 150, 40)
+        pygame.draw.rect(screen, "black", t_rect)
+        text = font.render(f"Turns: {scene.turn + 1}", True, "white")
         if pause is True:
             screen.blit(play_img, (x_img, y_img))
         else:
             screen.blit(pause_img, (x_img, y_img))
         screen.blit(replay_img, (x_img - button_size[0], y_img))
+        screen.blit(text, t_rect)
         pygame.display.update()
         clock.tick(fps)
     pygame.quit()

@@ -6,6 +6,15 @@ from enum import Enum
 
 
 class Zone(str, Enum):
+    """
+    Zone types for the hubs.
+
+    Enumeration:
+        BLOCKED: No drones can traverse a hub of this kind.
+        RESTRICTED: A drone takes two turns to get to a hub of this kind.
+        NORMAL: A drone takes one turn to get to these kind of hubs.
+        PRIORITY: Normal zones that are prioritized in pathfinding.
+    """
     BLOCKED = "blocked"
     RESTRICTED = "restricted"
     NORMAL = "normal"
@@ -13,23 +22,38 @@ class Zone(str, Enum):
 
 
 class Hub(BaseModel):
+    """
+    Graph vertex (also refered as node, hub or zone) as a Pydantic model.
+
+    Arguments:
+        id: the hub name.
+        position: an intefer tuple containing the hub logic position.
+
+    Keyword Arguments:
+        color: A color string (defaults to "white").
+        zone: The hub zone type (defaults to normal).
+        capacity: How many drones can the hub hold at a time (defaults to 1).
+        connections: Connections list regarding the hub (defaults to empty).
+        heuristic: The intrinsic distance to the goal hub (defaults to 0).
+    """
     id: str = Field(...)
     position: tuple[int, int] = Field(...)
     color: str = Field(default="white")
     zone: Zone | None = None
     capacity: int = Field(default=1, gt=0)
-    occupation: int = 0
     connections: list[str] = []
     heuristic: int = 0
 
     @model_validator(mode="after")
     def validate_name(self):
+        """Raise NodeError if hub name has spaces or dashes"""
         if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
             raise NodeError(f"invalid name: {self.id}")
         return self
 
     @model_validator(mode="after")
     def validate_color(self):
+        """Set color to white if color  not in Pygame ColorDict"""
         if self.color.lower() == "rainbow":
             return self
         try:
@@ -38,7 +62,7 @@ class Hub(BaseModel):
             self.color = "white"
         return self
 
-    @model_validator(mode="after")
+    """@model_validator(mode="after")
     def validate_zone(self):
         if self.zone == "blocked" and self.capacity != 0:
             raise NodeError(
@@ -48,48 +72,32 @@ class Hub(BaseModel):
             raise NodeError(
                 f"hub {self.id} must hold drones if not blocked"
             )
-        return self
-
-    def is_occupied(self) -> bool:
-        return self.occupation >= self.capacity
-
-    @property
-    def g(self) -> float:
-        return self._g
-
-    @g.setter
-    def g(self, n: float) -> None:
-        self._g = n
-        self._f = self._g + self._h
-
-    @property
-    def h(self) -> float:
-        return self._h
-
-    @h.setter
-    def h(self, n: float) -> None:
-        self._h = n
-        self._f = self._g + self._h
-
-    @property
-    def f(self) -> float:
-        return self._f
-
-    @f.setter
-    def f(self, n: float) -> None:
-        self._f = n
+        return self"""
 
 
 class Connection(BaseModel):
+    """
+    Graph edge (also refered as connection or link) as a Pydantic model.
+
+    Arguments:
+        hub1: the first hub.
+        hub2: the second hub.
+        coords1: the logic coordinates of the first hub.
+        coords2: the logic coordinates of the second hub.
+        position: an intefer tuple containing the hub logic position.
+
+    Keyword Arguments:
+        capacity: How many drones can the hub hold at a time (defaults to 1).
+    """
     hub1: Hub = Field(...)
     hub2: Hub = Field(...)
     coords1: tuple[int, int] = Field(...)
     coords2: tuple[int, int] = Field(...)
     capacity: int = Field(gt=0, default=1)
-    occupation: int = 0
 
     @model_validator(mode="after")
     def validate_hubs(self):
+        """Raise EdgeError if hubs share name or coordinates"""
         if self.hub1.id.lower() == self.hub2.id.lower():
             raise EdgeError(
                 f"{self.hub1.id}-{self.hub2.id} connects with itself"
@@ -100,17 +108,18 @@ class Connection(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def validate_link(self):
-        if self.capacity < 1:
-            self.capacity = 1
-        return self
-
-    def is_occupied(self) -> bool:
-        return self.occupation >= self.capacity
-
 
 class MapData(BaseModel):
+    """
+    Graph as a Pydantic model.
+
+    Arguments:
+        nb_drones: Number of drones.
+        start_hub: The vertex where all drones will start.
+        end_hub: The vertex where all drones must go to.
+        hubs: The graph vertices as a dictionary, not counting start and goal.
+        connections: The graph edges as a list.
+    """
     nb_drones: int = Field(gt=0)
     start_hub: Hub
     end_hub: Hub
@@ -119,6 +128,7 @@ class MapData(BaseModel):
 
     @model_validator(mode="after")
     def validate_coords(self):
+        """Raise MapError if two hubs share logical coordinates"""
         hubs: list[Hub] = []
         hubs.append(self.start_hub)
         for hub in self.hubs.values():
@@ -135,6 +145,7 @@ class MapData(BaseModel):
 
     @model_validator(mode="after")
     def validate_connections(self):
+        """Raise MapError if duplicated connections"""
         for i in range(len(self.connections)):
             for j in range(i + 1, len(self.connections)):
                 dup = [

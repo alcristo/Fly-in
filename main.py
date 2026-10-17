@@ -1,3 +1,4 @@
+from exceptions import MapError
 from parser import Parser, ParsingError
 from map import Map, Algorithm
 from map_draw import draw_map
@@ -27,24 +28,30 @@ def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
 def menu() -> str:
     print("\x1b[H\x1b[0J", end="")
     print(rainbow_text("Fly-in"))
+    print()
+    print(
+        "A Multi-Agent Pathfinding program in graphs.\n"
+        "Author: alcristo\n"
+        "Pathfinding algorithm: A* with prioritized planning\n"
+    )
     print("DEFAULT MAPS\n")
-    print("Easy maps")
-    print("1: Linear Path")
-    print("2: Simple Fork")
-    print("3: Basic Capacity")
+    print("\x1b[92mEasy maps\x1b[0m")
+    print("1: \x1b[92mLinear Path\x1b[0m")
+    print("2: \x1b[92mSimple Fork\x1b[0m")
+    print("3: \x1b[92mBasic Capacity\x1b[0m")
     print()
-    print("Medium maps")
-    print("4: Dead End Trap")
-    print("5: Circular Loop")
-    print("6: Priority Puzzle")
+    print("\x1b[93mMedium maps\x1b[0m")
+    print("4: \x1b[93mDead End Trap\x1b[0m")
+    print("5: \x1b[93mCircular Loop\x1b[0m")
+    print("6: \x1b[93mPriority Puzzle\x1b[0m")
     print()
-    print("Hard maps")
-    print("7: Maze Nightmare")
-    print("8: Capacity Hell")
-    print("9: Ultimate Challenge")
+    print("\x1b[91mHard maps\x1b[0m")
+    print("7: \x1b[91mMaze Nightmare\x1b[0m")
+    print("8: \x1b[91mCapacity Hell\x1b[0m")
+    print("9: \x1b[91mUltimate Challenge\x1b[0m")
     print()
-    print("Challenge map")
-    print("10: THE IMPOSSIBLE DREAM")
+    print("\x1b[38;2;150;90;200mChallenge map\x1b[0m")
+    print("10: \x1b[38;2;150;90;200mTHE IMPOSSIBLE DREAM\x1b[0m")
     print()
     level = input("Enter the level number or the map file route: ")
     if level == "1":
@@ -173,6 +180,8 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
+    except MapError as e:
+        print(e.__str__())
     except KeyboardInterrupt:
         pass
     except EOFError:

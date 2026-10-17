@@ -11,8 +11,22 @@ If keeps being hard, either:
 
 
 class Parser:
+    """Parser class for map parsing from .txt files"""
 
     def _init_hub(self, node_dict: dict[str, str]) -> Hub:
+        """
+        Initialize zone in the map data
+
+        Arguments:
+            node_dict: A dictionary containing the zone information
+
+        Returns:
+            new_hub: The parsed hub
+
+        Raises:
+            NodeError: one of the keys is missing (unikely) or
+                Pydantic fails to validate the zone
+        """
         try:
             new_hub = Hub(
                 id=node_dict["id"],
@@ -24,10 +38,20 @@ class Parser:
         except KeyError as e:
             raise NodeError(f"missing key for hub: {e.__str__}")
         except ValueError:
-            raise ParsingError(f"invalid hub: {node_dict}")
+            raise NodeError(f"invalid hub: {node_dict}")
         return new_hub
 
     def _hub_in_list(self, name: str, hubs: dict[str, Hub]) -> bool:
+        """
+        Checks if a hub is in the dictionary
+
+        Arguments:
+            name: the hub name
+            hubs: a dictionary containing the hubs with their names as keys
+
+        Returns:
+            Boolean: Whether the hub is in the dictionary
+        """
         keys = hubs.keys()
         for key in keys:
             if key == name:
@@ -35,6 +59,19 @@ class Parser:
         return False
 
     def _get_hub(self, name: str, hubs: dict[str, Hub]) -> Hub:
+        """
+        Return name labeled hub from hubs dictionary
+
+        Arguments:
+            name: the hub name
+            hubs: a dictionary containing the hubs with their names as keys
+
+        Returns:
+            hub: the hub labeled name
+
+        Raises:
+            NodeError: if hub not in hubs
+        """
         for key, hub in hubs.items():
             if key == name:
                 return hub
@@ -43,6 +80,21 @@ class Parser:
     def _init_connection(
         self, edge_dict: dict[str, str], hubs: dict[str, Hub]
     ) -> Connection:
+        """
+        Initialize connection in the map data
+
+        Arguments:
+            edge_dict: A dictionary containing the link information
+            hubs: a dictionary containing all zones with their names as keys
+
+        Returns:
+            new_connection: The parsed connection
+
+        Raises:
+            KeyError: if one of the keys is missing (unikely)
+            ValueError: If Pydantic fails to validate the zone
+            NodeError: if any of the hubs in the connection not in hubs
+        """
         try:
             hub1 = self._get_hub(edge_dict["hub1"], hubs)
             hub2 = self._get_hub(edge_dict["hub2"], hubs)
@@ -60,6 +112,20 @@ class Parser:
         return new_connection
 
     def parse(self, path: str) -> MapData:
+        """
+        Parse a text file into a map
+
+        Arguments:
+            path: the path to the text file
+
+        Returns:
+            map_data: a map data with all the information
+
+        Raises:
+            ParsingError: Map file has incorrect structure
+            NodeError: Hub has incorrect structure
+            EdgeError: Connection has incorrect structure
+        """
 
         # Open and read the file
         try:
@@ -75,7 +141,6 @@ class Parser:
         valid_lines = [
             line.split(':') for line in lines if line.find('#') != 0
         ]
-        # print(txt)
 
         # Define nodes and edges dictionaries
         nb_drones = 0
@@ -98,11 +163,11 @@ class Parser:
             elif line[0] == "start_hub":
                 if len(start_node.keys()):
                     raise ParsingError("more than one start hub in map")
-                start_node = self.parse_zone(line[1], "start_hub")
+                start_node = self.parse_zone(line[1], "start_hub", nb_drones)
             elif line[0] == "end_hub":
                 if len(end_node.keys()):
                     raise ParsingError("more than one end hub in map")
-                end_node = self.parse_zone(line[1], "end_hub")
+                end_node = self.parse_zone(line[1], "end_hub", nb_drones)
             elif line[0] == "hub":
                 nodes.append(self.parse_zone(line[1], "hub"))
             elif line[0] == "connection":
@@ -133,15 +198,38 @@ class Parser:
             connections.append(self._init_connection(edge, hubs))
         hubs.pop(start_hub.id)
         hubs.pop(end_hub.id)
-        return MapData(
+        map_data = MapData(
             nb_drones=nb_drones,
             start_hub=start_hub,
             end_hub=end_hub,
             hubs=hubs,
             connections=connections
         )
+        return map_data
 
-    def parse_zone(self, line: str, element: str) -> dict[str, str]:
+    def parse_zone(
+        self,
+        line: str,
+        element: str,
+        n: int = 1
+    ) -> dict[str, str]:
+        """
+        Parse a zone
+
+        Arguments:
+            line: the hub line containing the name, coordinates and metadata.
+            element: can he 'hub', 'start_hub' or 'end_hub'.
+
+        Keyword arguments:
+            n: Number of drones that may hold the hub (default 1).
+            Only for start and end hubs.
+
+        Returns:
+            inst: an instance of the hub as a dictionary
+
+        Raises:
+            ParsingError: hub data is invalid
+        """
         line.strip()
         inst: dict[str, str] = {}
         metadata = line.split(' ')
@@ -178,7 +266,7 @@ class Parser:
                     if element == "hub":
                         inst.update({"max_drones": att[1]})
                     else:
-                        inst.update({"max_drones": "1000"})
+                        inst.update({"max_drones": str(n)})
                 else:
                     inst.update({att[0]: att[1]})
         if not inst.get("color"):
@@ -186,15 +274,18 @@ class Parser:
         if not inst.get("zone"):
             inst.update({"zone": "normal"})
         else:
-            try:
-                assert inst["zone"] in (
-                    "normal", "priority", "restricted", "blocked"
-                )
-            except AssertionError:
-                raise ParsingError(
-                    f"invalid zone type for {inst['id']}"
-                    f": {inst['zone']}"
-                )
+            if element == "hub":
+                try:
+                    assert inst["zone"] in (
+                        "normal", "priority", "restricted", "blocked"
+                    )
+                except AssertionError:
+                    raise ParsingError(
+                        f"invalid zone type for {inst['id']}"
+                        f": {inst['zone']}"
+                    )
+            else:
+                inst["zone"] = "normal"
         if not inst.get("max_drones"):
             inst.update({"max_drones": "1"})
         else:
@@ -208,7 +299,24 @@ class Parser:
         return inst
 
     def parse_edge(self, line: str, element: str) -> dict[str, str]:
-        if element not in ("start_hub", "end_hub", "hub", "connection"):
+        """
+        Parse a connection
+
+        Arguments:
+            line: the link line containing the name, coordinates and metadata.
+            element: must be 'connection'.
+
+        Keyword arguments:
+            n: Number of drones that may hold the hub (default 1).
+            Only for start and end hubs.
+
+        Returns:
+            inst: An instance of the connection as a dictionary
+
+        Raises:
+            ParsingError: Connection data is invalid
+        """
+        if element != "connection":
             raise ParsingError(f"invalid line: {element}: {line}")
         line.strip()
         inst: dict[str, str] = {}
