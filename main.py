@@ -169,6 +169,7 @@ def main() -> None:
         return
     map = Map()
     map.fill_map(data)
+    map.init_h()
     algo = Algorithm(map)
     solution = algo.solve()
     print()

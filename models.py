@@ -3,6 +3,7 @@ import pygame
 from pydantic import BaseModel, Field, model_validator
 from exceptions import NodeError, EdgeError, MapError
 from enum import Enum
+from math import inf
 
 
 class Zone(str, Enum):
@@ -42,7 +43,7 @@ class Hub(BaseModel):
     zone: Zone | None = None
     capacity: int = Field(default=1, gt=0)
     connections: list[str] = []
-    heuristic: int = 0
+    heuristic: float = inf
 
     @model_validator(mode="after")
     def validate_name(self):

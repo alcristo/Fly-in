@@ -75,7 +75,7 @@ class Map:
             edge.hub2.connections.append(edge.hub1.id)
 
     def init_h(self) -> None:
-        open_heap: list[tuple[int, str]] = []
+        open_heap: list[tuple[float, str]] = []
         cl_set: set[str] = set()
         current: str = self.goal_hub.id
         heapq.heappush(open_heap, (0, current))
@@ -90,10 +90,15 @@ class Map:
                 if self.hub(hub).zone == "restricted":
                     zone = 2
                 elif self.hub(hub).zone == "blocked":
-                    zone = int(1e6)
+                    zone = inf
                 heapq.heappush(open_heap, (dist + 1 + zone, hub))
         for h, hub in open_heap:
             self.hub(hub).heuristic = h
+        if self.start_hub.heuristic == inf:
+            raise MapError(
+                "map has no reachable solution from "
+                f"{self.start_hub.id} to {self.goal_hub.id}"
+            )
 
 
 class Reservations:
