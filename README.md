@@ -10,13 +10,13 @@ Fly-in is a multi-agent pathfinding (MAPF) Python project in which a certain num
 
 A level consists of a graph with the following elements:
 
-Element | Description
----------------------
-nb_drones | The number of drones in the map
-start_hub | The graph vertex where all drones start
-end_hub | The graph vertex where all drones must travel to
-hub | Any other vertex in the graph
-connection | An edge in the graph
+| Element | Description
+| -------- | ------------- |
+| nb_drones | The number of drones in the map |
+| start_hub | The graph vertex where all drones start |
+| end_hub | The graph vertex where all drones must travel to |
+| hub | Any other vertex in the graph |
+| connection | An edge in the graph |
 
 Hubs in the map have a name for identification and a logical position made by two integers. Hubs have also the following properties as metadata:
 
@@ -26,12 +26,12 @@ Hubs in the map have a name for identification and a logical position made by tw
 
 Hub zone types can be:
 
-Zone | Description
-------------------
-normal | Drones take a turn to get to the hub and another one to leave it.
-restricted | Drones take two turns to get to the hub, but only one to leave it.
-priority | A normal hub that will have priority during pathfinding.
-blocked | Drones can't get there. Counts as if it doesn't exist.
+| Zone | Description |
+| ---- | -------------- |
+| normal | Drones take a turn to get to the hub and another one to leave it. |
+| restricted | Drones take two turns to get to the hub, but only one to leave it. |
+| priority | A normal hub that will have priority during pathfinding. |
+| blocked | Drones can't get there. Counts as if it doesn't exist. |
 
 On the other hand, connections don't have identifiers, but only the hubs they connect. It has also the following metadata:
 
@@ -71,14 +71,14 @@ source .venv/bin/activate
 
 The project contains a Makefile with the following rules:
 
-Rule | Description
-------------------
-install | Install the dependencies
-run | Run the project
-debug | Debug the project with PDB
-clean | Remove temporal cache
-lint | Execute flake8 and mypy
-lint-strict | Execute flake8 and mypy --strict
+| Rule | Description |
+| ---- | -------------- |
+| install | Install the dependencies |
+| run | Run the project |
+| debug | Debug the project with PDB |
+| clean | Remove temporal cache |
+| lint | Execute flake8 and mypy |
+| lint-strict | Execute flake8 and mypy --strict |
 
 To execute any of the rules run:
 
@@ -92,18 +92,18 @@ When the project is run, a menu will appear. The user will then enter a number f
 
 There are ten maps in total:
 
-Map | Difficulty | Drones | Reference turns | Description
----------------------------------------------------------
-Linear Path | Easy | 2 | 6 | Simple linear path
-Simple Fork | Easy | 4 | 8 | Simple fork with two paths
-Basic Capacity | Easy | 4 | 6 | Basic capacity management
-Dead End Trap | Medium | 5 | 12 | Dead end trap - drones might get stuck
-Circular Loop | Medium | 6 | 15 | Circular loop with restricted zones
-Priority Puzzle | Medium | 5 | 12 | Priority zones create optimal path challenges
-Maze Nightmare | Hard | 8 | 30 | Complex maze with multiple dead ends and loops
-Capacity Hell | Hard | 12 | 35 | Extreme capacity constraints with timing challenges
-Ultimate Challenge | Hard | 15 | 45 | THE ULTIMATE CHALLENGE - All tricks combined
-The Impossible Dream | Challenge | 25 | 45 | Extremely challenging map, may not be solvable by most algorithms
+| Map | Difficulty | Drones | Reference turns | Score | Description |
+| --- | ---------- | ------ | --------------- | ----- | ------ |
+| Linear Path | Easy | 2 | 6 | 4 | Simple linear path |
+| Simple Fork | Easy | 4 | 8 | 4 | Simple fork with two paths |
+| Basic Capacity | Easy | 4 | 6 | 4 | Basic capacity management |
+| Dead End Trap | Medium | 5 | 12 | 8 | Dead end trap - drones might get stuck |
+| Circular Loop | Medium | 6 | 15 | 15 | Circular loop with restricted zones |
+| Priority Puzzle | Medium | 5 | 12 | 7 | Priority zones create optimal path challenges |
+| Maze Nightmare | Hard | 8 | 30 | 13 | Complex maze with multiple dead ends and loops |
+| Capacity Hell | Hard | 12 | 35 | 16 | Extreme capacity constraints with timing challenges |
+| Ultimate Challenge | Hard | 15 | 45 | 26 | THE ULTIMATE CHALLENGE - All tricks combined |
+| The Impossible Dream | Challenge | 25 | 45 | 43 | Extremely challenging map, may not be solvable by most algorithms |
 
 ### Custom maps
 

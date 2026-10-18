@@ -75,7 +75,6 @@ class Map:
             edge.hub2.connections.append(edge.hub1.id)
 
     def init_h(self) -> None:
-        # initialize the heap and the closed set
         open_heap: list[tuple[float, str]] = []
         cl_set: set[str] = set()
         current: str = self.goal_hub.id
@@ -83,8 +82,10 @@ class Map:
         while len(open_heap):
             dist, current = heapq.heappop(open_heap)
             cl_set.add(current)
+            # print(f"{current}: {self.hubs[current].heuristic}, {dist}")
+            if dist < self.hubs[current].heuristic:
+                self.hubs[current].heuristic = dist
             neighbours = self.neighbours(current)
-            self.hubs[current].heuristic = dist
             for hub in neighbours:
                 if hub in cl_set:
                     continue
@@ -94,8 +95,8 @@ class Map:
                 elif self.hub(hub).zone == "blocked":
                     zone = inf
                 heapq.heappush(open_heap, (dist + 1 + zone, hub))
-        for h, hub in open_heap:
-            self.hub(hub).heuristic = h
+        # for h, hub in open_heap:
+            # self.hub(hub).heuristic = h
         if self.start_hub.heuristic == inf:
             raise MapError(
                 "map has no reachable solution from "

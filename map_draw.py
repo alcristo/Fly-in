@@ -261,18 +261,15 @@ class Scene:
                 drone.turn += 1
             else:
                 to_id = order
-                if self.turn == 0 or not drone.steps[self.turn - 1]:
-                    i = self.turn - 1
-                    while i > 0 and not drone.steps[i]:
-                        i -= 1
-                    if i <= 0:
-                        fro_id = self.map.start_hub.id
-                    else:
-                        fro_id = drone.steps[i]
-                elif '→' in drone.steps[self.turn - 1]:
-                    fro_id = drone.steps[self.turn - 1].split('→')[1]
+                i = self.turn - 1
+                while i >= 0 and not drone.steps[i]:
+                    i -= 1
+                if i < 0:
+                    fro_id = self.map.start_hub.id
+                elif '→' in drone.steps[i]:
+                    fro_id = drone.steps[i].split('→')[1]
                 else:
-                    fro_id = drone.steps[self.turn - 1]
+                    fro_id = drone.steps[i]
             fro = self.map.hub(fro_id)
             to = self.map.hub(to_id)
             drone.start_move(fro.position, to.position, duration)
