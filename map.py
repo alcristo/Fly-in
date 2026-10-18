@@ -75,6 +75,7 @@ class Map:
             edge.hub2.connections.append(edge.hub1.id)
 
     def init_h(self) -> None:
+        # initialize the heap and the closed set
         open_heap: list[tuple[float, str]] = []
         cl_set: set[str] = set()
         current: str = self.goal_hub.id
@@ -83,10 +84,11 @@ class Map:
             dist, current = heapq.heappop(open_heap)
             cl_set.add(current)
             neighbours = self.neighbours(current)
+            self.hubs[current].heuristic = dist
             for hub in neighbours:
                 if hub in cl_set:
                     continue
-                zone = 1
+                zone = 1.
                 if self.hub(hub).zone == "restricted":
                     zone = 2
                 elif self.hub(hub).zone == "blocked":
