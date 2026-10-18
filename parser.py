@@ -2,14 +2,6 @@ from models import MapData, Hub, Connection, Zone
 from exceptions import ParsingError, NodeError, EdgeError
 
 
-"""
-If keeps being hard, either:
-    - Find a parser library
-    - Convert to JSON
-    - Use tqdm for loading bar
-"""
-
-
 class Parser:
     """Parser class for map parsing from .txt files"""
 
@@ -148,6 +140,8 @@ class Parser:
         end_node: dict[str, str] = {}
         nodes: list[dict[str, str]] = []
         edges: list[dict[str, str]] = []
+        if valid_lines[0][0] != "nb_drones":
+            raise ParsingError("first line must start with 'nb_drones'")
         for line in valid_lines:
             if (len(line) != 2):
                 raise ParsingError(f"invalid line: {line}")

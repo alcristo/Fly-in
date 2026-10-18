@@ -58,7 +58,7 @@ In terminal, the solution is printed with the following format:
 
 The hub names are represented with their color string according to the Pygame `ColorDict`. If it doesn't exist then it's set to white, except `rainbow`, where the characters rotate colors.
 
-In addition to the terminal, a Pygame window is opened representing the graph with the drone routes. At startup the animation is paused and the drones are at the start hub. The user can pan and zoom the camera for enhanced user experience. To start the animation press the play button. To reset the animation press the replay button, and the pause will then be active even if the animation was in play mode. A turn counter was implemented to see the turns while the drones are moving.
+In addition to the terminal, a Pygame window is opened representing the graph with the drone routes. At startup the animation is paused and the drones are at the start hub. The user can pan and zoom the camera for enhanced user experience. To start the animation press the play button. To reset the animation press the replay button, and the pause will then be active even if the animation was in play mode. Fast forward and slow down buttons were also implemented, as well as a turn counter to see the turns while the drones are moving.
 
 ## Instructions
 
@@ -75,6 +75,7 @@ The project contains a Makefile with the following rules:
 | ---- | -------------- |
 | install | Install the dependencies |
 | run | Run the project |
+| run-capacity-info | Shows the capacity of the occupied hubs on each turn on terminal |
 | debug | Debug the project with PDB |
 | clean | Remove temporal cache |
 | lint | Execute flake8 and mypy |
