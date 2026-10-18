@@ -2,6 +2,7 @@
 import pygame
 from pydantic import BaseModel, Field, model_validator
 from exceptions import NodeError, EdgeError, MapError
+from typing_extensions import Self
 from enum import Enum
 from math import inf
 
@@ -46,14 +47,14 @@ class Hub(BaseModel):
     heuristic: float = inf
 
     @model_validator(mode="after")
-    def validate_name(self):
+    def validate_name(self) -> Self:
         """Raise NodeError if hub name has spaces or dashes"""
         if self.id.find(" ") >= 0 or self.id.find("-") >= 0:
             raise NodeError(f"invalid name: {self.id}")
         return self
 
     @model_validator(mode="after")
-    def validate_color(self):
+    def validate_color(self) -> Self:
         """Set color to white if color  not in Pygame ColorDict"""
         if self.color.lower() == "rainbow":
             return self
@@ -97,7 +98,7 @@ class Connection(BaseModel):
     capacity: int = Field(gt=0, default=1)
 
     @model_validator(mode="after")
-    def validate_hubs(self):
+    def validate_hubs(self) -> Self:
         """Raise EdgeError if hubs share name or coordinates"""
         if self.hub1.id.lower() == self.hub2.id.lower():
             raise EdgeError(
@@ -128,7 +129,7 @@ class MapData(BaseModel):
     connections: list[Connection] = Field(...)
 
     @model_validator(mode="after")
-    def validate_coords(self):
+    def validate_coords(self) -> Self:
         """Raise MapError if two hubs share logical coordinates"""
         hubs: list[Hub] = []
         hubs.append(self.start_hub)
@@ -145,7 +146,7 @@ class MapData(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_connections(self):
+    def validate_connections(self) -> Self:
         """Raise MapError if duplicated connections"""
         for i in range(len(self.connections)):
             for j in range(i + 1, len(self.connections)):

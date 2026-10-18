@@ -119,7 +119,7 @@ class GraphicDrone:
 class Scene:
     def __init__(
             self,
-            screen: pygame.Surface,
+            screen: pygame.surface.Surface,
             w: int,
             h: int,
             level: Map,
@@ -232,7 +232,7 @@ class Scene:
             )
         self.draw_drones(scale)
 
-    def move_drones(self, dt: float):
+    def move_drones(self, dt: float) -> None:
         if self.turn >= len(self.drones[0].steps):
             return
         for drone in self.drones:
@@ -284,7 +284,7 @@ class Scene:
         if done:
             self.turn += 1
 
-    def restart(self):
+    def restart(self) -> None:
         for drone in self.drones:
             drone.position = self.map.start_hub.position
             drone.rotation = 0
@@ -298,7 +298,7 @@ class Scene:
         self.turn = 0
 
 
-def draw_map(level: Map, solution: dict[int, list[str]], scale: int):
+def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
     pygame.init()
     pygame.display.set_caption("Fly-in")
     drone_surface = pygame.image.load("graphics/drone1.png")

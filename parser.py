@@ -287,7 +287,10 @@ class Parser:
             else:
                 inst["zone"] = "normal"
         if not inst.get("max_drones"):
-            inst.update({"max_drones": "1"})
+            if element == "hub":
+                inst.update({"max_drones": "1"})
+            else:
+                inst.update({"max_drones": str(n)})
         else:
             try:
                 int(inst["max_drones"])

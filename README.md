@@ -4,7 +4,7 @@
 
 ## Description
 
-Fly-in is a multi-agent pathfinding (MAPF) Python project in which a certain number of drones (agents) must traverse a graph from a starting vertex (here referenced as node, hub or zone) to a goal hub by traversing the graph edges (here referred as links or connections), while respecting capacity restrictions and hub zone types. This project includes visual representation in terminal and in graphic window via Pygame.
+Fly-in is a multi-agent pathfinding (MAPF) Python project in which a certain number of drones (agents) must traverse a graph from a starting vertex (here referenced as node, hub or zone) to a goal hub by traversing the graph edges (here referred as links or connections), while respecting capacity restrictions and hub zone types. This project includes visual representation in terminal and in graphic window via `Pygame`.
 
 ### Graph characteristics
 
@@ -12,32 +12,32 @@ A level consists of a graph with the following elements:
 
 | Element | Description
 | -------- | ------------- |
-| nb_drones | The number of drones in the map |
-| start_hub | The graph vertex where all drones start |
-| end_hub | The graph vertex where all drones must travel to |
-| hub | Any other vertex in the graph |
-| connection | An edge in the graph |
+| `nb_drones` | The number of drones in the map |
+| `start_hub` | The graph vertex where all drones start |
+| `end_hub` | The graph vertex where all drones must travel to |
+| `hub` | Any other vertex in the graph |
+| `connection` | An edge in the graph |
 
 Hubs in the map have a name for identification and a logical position made by two integers. Hubs have also the following properties as metadata:
 
-* color: the hub color, represented by any string.
-* zone: the zone type, which will make drones act differently.
-* max_drones: the maximum number of drones that the hub can hold at a time.
+* `color`: the hub color, represented by any string.
+* `zone`: the zone type, which will make drones act differently.
+* `max_drones`: the maximum number of drones that the hub can hold at a time.
 
 Hub zone types can be:
 
 | Zone | Description |
 | ---- | -------------- |
-| normal | Drones take a turn to get to the hub and another one to leave it. |
-| restricted | Drones take two turns to get to the hub, but only one to leave it. |
-| priority | A normal hub that will have priority during pathfinding. |
-| blocked | Drones can't get there. Counts as if it doesn't exist. |
+| `normal` | Drones take a turn to get to the hub and another one to leave it. |
+| `restricted` | Drones take two turns to get to the hub, but only one to leave it. |
+| `priority` | A normal hub that will have priority during pathfinding. |
+| `blocked` | Drones can't get there. Counts as if it doesn't exist. |
 
 On the other hand, connections don't have identifiers, but only the hubs they connect. It has also the following metadata:
 
-* max_link_capacity: the maximum number of drones that must traverse the connection at a time. Drones traversing to restricted hubs are considered to stay in the connection during two turns.
+* `max_link_capacity`: the maximum number of drones that must traverse the connection at a time. Drones traversing to restricted hubs are considered to stay in the connection during two turns.
 
-A valid map is considered to have only a start hub and an end hub, a positive number of drones and capacities for all nodes and links, and all hubs having valid zone types. Colors that don't appear in the Pygame `ColorDict` will be set to white. Disconnected maps will be rejected as the A* search will deem them unsolvable. Start hub is forced to set as normal.
+A valid map is considered to have only a start hub and an end hub, a positive number of drones and capacities for all nodes and links, and all hubs having valid zone types. Colors that don't appear in the Pygame `ColorDict` will be set to white. Disconnected maps will be rejected as the A* search will deem them unsolvable. Start hub is forced to set as normal. Both hubs and connections are validated by `Pydantic`.
 
 ### Algorithm: A* Prioritized Planning Search
 
@@ -128,6 +128,16 @@ connection: hub1-hub2 [metadata=any]
 It is recommended to put the connections at the end of the file; otherwise exceptions may arise. Invalid values for valid metadata types will raise exceptions. Invalid metadata types will be ignored.
 
 ## Resources
+
+[Wikipedia page for Multi-agent pathfinding](https://en.wikipedia.org/wiki/Multi-agent_pathfinding) for documentation on this specific project.
+
+[Pygame official documentation](https://www.pygame.org/docs/).
+
+My [A-Maze-ing](https://github.com/alcristo/A-Maze-ing) project, from where my pathfinding algorithm is based on.
+
+[Pixilart](https://www.pixilart.com/draw), where I drew the drone sprite.
+
+42 for the default maps.
 
 ### AI Usage
 

@@ -2,7 +2,7 @@ NAME = main.py
 
 VENV = .venv
 
-PYTHON = $(VENV)/bin/python3
+PYTHON = python3
 
 ACTIVATE = source .venv/bin/activate
 
@@ -11,9 +11,11 @@ PIP = pip install
 REQUIREMENTS = -r requirements.txt
 
 SOURCES =	main.py \
+			exceptions.py \
 			models.py \
+			parser.py \
 			map.py \
-			parser.py
+			map_draw.py
 
 CACHE = __pycache__ \
 		*/__pycache__ \
@@ -25,10 +27,16 @@ LINT = flake8 $(SOURCES) && mypy $(SOURCES)
 
 
 install:
-	$(PYTHON) -m $(VENV) && $(ACTIVATE) && $(PIP) $(REQUIREMENTS)
+	$(PIP) $(REQUIREMENTS)
 
 run:
-	$(PYTHON) $(NAME)
+	$(PYTHON) $(NAME) $(filter-out $@,$(MAKECMDGOALS))
+
+run-capacity-info:
+	$(PYTHON) $(NAME) --capacity-info $(filter-out $@,$(MAKECMDGOALS))
+
+%:
+	@:
 
 debug:
 	$(PYTHON) -m pdb $(NAME) $(CONFIG)

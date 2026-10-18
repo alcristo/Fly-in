@@ -60,7 +60,7 @@ class Map:
                 neighs.add(edge.hub1.id)
         return neighs
 
-    def fill_map(self, map_data: MapData):
+    def fill_map(self, map_data: MapData) -> None:
         self.drones = map_data.nb_drones
         self.start_hub = map_data.start_hub
         self.add_hub(map_data.start_hub)
@@ -82,7 +82,6 @@ class Map:
         while len(open_heap):
             dist, current = heapq.heappop(open_heap)
             cl_set.add(current)
-            # print(f"{current}: {self.hubs[current].heuristic}, {dist}")
             if dist < self.hubs[current].heuristic:
                 self.hubs[current].heuristic = dist
             neighbours = self.neighbours(current)
@@ -119,9 +118,6 @@ class Drone:
     def __init__(self, number: int, start: Hub) -> None:
         self.id = number
         self.plan: list[str] = []
-        self.current: Hub = start
-        self.goingto: Hub | None = None
-        self.transiting: Connection | None = None
 
 
 class PathNode:
@@ -227,7 +223,7 @@ class Algorithm:
         self.reservations = Reservations()
         self.turns = 0
 
-    def can_move(self, u: str, v: str, t: int):
+    def can_move(self, u: str, v: str, t: int) -> bool:
         if not self.reservations.vertex_occupancy:
             return True
         if not self.reservations.edge_occupancy:
@@ -411,7 +407,21 @@ class Algorithm:
                 undirected_edge(node.previous_hub().id, node.hub.id)
             )
 
-    def solve(self) -> str:
+    def _append_capacity(self, moves: list[str], turn: int) -> None:
+        drone_move = moves[-1].split('-')
+        if '→' in drone_move[1]:
+            travel = drone_move[1].split('→')
+            cap = self.map.get_connection(travel[0], travel[1]).capacity
+            occ = self.reservations.edge_occupancy[turn].get(
+                undirected_edge(travel[0], travel[1])
+            )
+        else:
+            hub = drone_move[1]
+            cap = self.map.hub(hub).capacity
+            occ = self.reservations.vertex_occupancy[turn].get(hub, 0)
+        moves[-1] += f"={occ}/{cap}"
+
+    def solve(self, cap_info: bool = False) -> str:
         solution = ""
         instructions: dict[int, list[str]] = {}
         # get the movements for each drone
@@ -433,6 +443,14 @@ class Algorithm:
             drone.plan.reverse()
             self.plans.append(drone.plan)
             instructions.update({drone.id: drone.plan})
+        n = max([len(i.plan) for i in self.drones])
+        if cap_info:
+            for drone in self.drones:
+                while len(drone.plan) < n:
+                    self.reservations.vertex_occupancy[
+                        len(drone.plan)
+                    ][self.map.goal_hub.id] += 1
+                    drone.plan.append("--wait--")
         i = 1
         turn: list[str] = []
         remove: list[int] = []
@@ -442,6 +460,8 @@ class Algorithm:
                     # don't print waiting drones
                     if plan[i] != "--wait--":
                         turn.append(f"D{n}-{plan[i]}")
+                        if cap_info:
+                            self._append_capacity(turn, i)
                 except IndexError:
                     # if plan out of range, drone delivered
                     remove.append(n)
