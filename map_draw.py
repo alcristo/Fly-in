@@ -34,7 +34,10 @@ class GraphicDrone:
         start: tuple[float, float]
     ) -> None:
         self.orig_sprite = pygame.image.load(path)
-        self.rot_sprite = pygame.image.load(path)
+        self.base_sprite = pygame.transform.smoothscale(
+            self.orig_sprite, (100, 100)
+        )
+        self.rot_sprite = self.base_sprite
         self.steps = orders
         self.position = start
         self.rotation: float = 0
@@ -61,12 +64,12 @@ class GraphicDrone:
         if dx == 0:
             if dy > 0:
                 self.rot_sprite = pygame.transform.rotate(
-                    self.orig_sprite, 90
+                    self.base_sprite, 90
                 )
                 self.rotation = 90
             else:
                 self.rot_sprite = pygame.transform.rotate(
-                    self.orig_sprite, 270
+                    self.base_sprite, 270
                 )
                 self.rotation = 270
         else:
@@ -75,7 +78,7 @@ class GraphicDrone:
                 self.rotation = 0
             else:
                 self.rot_sprite = pygame.transform.rotate(
-                    self.orig_sprite, 180
+                    self.base_sprite, 180
                 )
                 self.rotation = 180
 
@@ -87,7 +90,7 @@ class GraphicDrone:
         angle = atan2(dy, dx) * 180 / pi
         if (dx == 0 or dy == 0):
             return self.point_square(dx, dy)
-        self.rot_sprite = pygame.transform.rotate(self.orig_sprite, angle)
+        self.rot_sprite = pygame.transform.rotate(self.base_sprite, angle)
         self.rotation = angle % 360
 
     def start_move(
@@ -130,11 +133,11 @@ class Scene:
         self.zerozero: tuple[float, float] = (w // 16, h // 2)
         self.cam_x: float = 0
         self.cam_y: float = 0
-        self.lens: float = 1.0
+        self.zoom: float = 1.0
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
         self.last_mouse_pos: tuple[int, int] = pygame.mouse.get_pos()
-        self.world_x: float = self.mouse_x / self.lens + self.cam_x
-        self.world_y: float = self.mouse_y / self.lens + self.cam_y
+        self.world_x: float = self.mouse_x / self.zoom + self.cam_x
+        self.world_y: float = self.mouse_y / self.zoom + self.cam_y
         self.drag: bool = False
         self.drones: list[GraphicDrone] = [
             GraphicDrone(
@@ -159,11 +162,15 @@ class Scene:
                 drone.point_to(self.map.hub(to).position)
             x = drone.position[0] * scale + self.zerozero[0]
             y = -drone.position[1] * scale + self.zerozero[1]
-            screen_x = (x - self.cam_x) * self.lens
-            screen_y = (y - self.cam_y) * self.lens
-            size = max(5, 50 * self.lens)
+            screen_x = (x - self.cam_x) * self.zoom
+            screen_y = (y - self.cam_y) * self.zoom
+            size = max(5, round(50 * self.zoom))
             sprite = pygame.transform.smoothscale(
-                drone.rot_sprite, (size, size)
+                drone.rot_sprite,
+                (
+                    round(drone.rot_sprite.get_width() * size / 100),
+                    round(drone.rot_sprite.get_height() * size / 100)
+                )
             )
             rect = sprite.get_rect(
                 center=(round(screen_x, 2), round(screen_y, 2))
@@ -178,30 +185,30 @@ class Scene:
             ay = -hub1.position[1] * scale + self.zerozero[1]
             bx = hub2.position[0] * scale + self.zerozero[0]
             by = -hub2.position[1] * scale + self.zerozero[1]
-            ax = (ax - self.cam_x) * self.lens
-            ay = (ay - self.cam_y) * self.lens
-            bx = (bx - self.cam_x) * self.lens
-            by = (by - self.cam_y) * self.lens
+            ax = (ax - self.cam_x) * self.zoom
+            ay = (ay - self.cam_y) * self.zoom
+            bx = (bx - self.cam_x) * self.zoom
+            by = (by - self.cam_y) * self.zoom
             pygame.draw.line(
                 self.surface,
                 "black",
                 (ax, ay),
                 (bx, by),
-                max(4, int(8 * self.lens))
+                max(4, int(8 * self.zoom))
             )
             pygame.draw.line(
                 self.surface,
                 "white",
                 (ax, ay),
                 (bx, by),
-                max(2, int(4 * self.lens))
+                max(2, int(4 * self.zoom))
             )
         for hub in self.map.hubs.values():
             x = (hub.position[0] * scale + self.zerozero[0])
             y = (-hub.position[1] * scale + self.zerozero[1])
-            screen_x = (x - self.cam_x) * self.lens
-            screen_y = (y - self.cam_y) * self.lens
-            radius = max(3, int(30 * self.lens))
+            screen_x = (x - self.cam_x) * self.zoom
+            screen_y = (y - self.cam_y) * self.zoom
+            radius = max(3, int(30 * self.zoom))
             if hub.color.lower() == "rainbow":
                 pygame.draw.circle(
                     self.surface,
@@ -221,14 +228,14 @@ class Scene:
                 "gold",
                 (screen_x, screen_y),
                 radius,
-                max(2, int(4 * self.lens))
+                max(2, int(4 * self.zoom))
             )
             pygame.draw.circle(
                 self.surface,
                 "black",
                 (screen_x, screen_y),
                 radius,
-                max(1, int(2 * self.lens))
+                max(1, int(2 * self.zoom))
             )
         self.draw_drones(scale)
 
@@ -308,14 +315,27 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
     play_img = pygame.image.load("graphics/play.png")
     pause_img = pygame.image.load("graphics/pause.png")
     replay_img = pygame.image.load("graphics/replay.png")
+    ff_img = pygame.image.load("graphics/fast_forward.png")
+    sd_img = pygame.image.load("graphics/slow_down.png")
     button_size = play_img.get_size()
     x_img = screen.get_size()[0] - button_size[0]
     y_img = screen.get_size()[1] - button_size[1]
-    play = pygame.Rect(x_img, y_img, button_size[0], button_size[1])
-    replay = pygame.Rect(
+    ff = pygame.Rect(x_img, y_img, button_size[0], button_size[1])
+    play = pygame.Rect(
         x_img - button_size[0] - 1,
         y_img, button_size[0], button_size[1]
     )
+    replay = pygame.Rect(
+        x_img - 2 * button_size[0] - 1,
+        y_img, button_size[0], button_size[1]
+    )
+    sd = pygame.Rect(
+        x_img - 3 * button_size[0] - 1,
+        y_img, button_size[0], button_size[1]
+    )
+    t = 2.
+    t_rect = pygame.Rect(3000 - 150, 0, 150, 40)
+    text_rect = pygame.Rect(3000 - 130, 10, 130, 20)
     font = pygame.font.Font(None, 32)
     clock = pygame.time.Clock()
     pause = True
@@ -327,15 +347,15 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
                 running = False
             elif event.type == pygame.MOUSEWHEEL:
                 scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
-                scene.world_x = scene.cam_x + scene.mouse_x / scene.lens
-                scene.world_y = scene.cam_y + scene.mouse_y / scene.lens
+                scene.world_x = scene.cam_x + scene.mouse_x / scene.zoom
+                scene.world_y = scene.cam_y + scene.mouse_y / scene.zoom
                 if event.y > 0:
-                    scene.lens *= 1.1
+                    scene.zoom *= 1.1
                 else:
-                    scene.lens /= 1.1
-                scene.lens = max(.2, min(scene.lens, 5.))
-                scene.cam_x = scene.world_x - scene.mouse_x / scene.lens
-                scene.cam_y = scene.world_y - scene.mouse_y / scene.lens
+                    scene.zoom /= 1.1
+                scene.zoom = max(.2, min(scene.zoom, 5.))
+                scene.cam_x = scene.world_x - scene.mouse_x / scene.zoom
+                scene.cam_y = scene.world_y - scene.mouse_y / scene.zoom
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     if play.collidepoint(event.pos):
@@ -344,6 +364,10 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
                         if not pause:
                             pause = not pause
                         scene.restart()
+                    elif ff.collidepoint(event.pos):
+                        t = min(8, t * 2)
+                    elif sd.collidepoint(event.pos):
+                        t = max(.5, t / 2)
                     else:
                         scene.drag = True
                         scene.last_mouse_pos = pygame.mouse.get_pos()
@@ -355,22 +379,23 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
                     scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
                     dx = scene.last_mouse_pos[0] - scene.mouse_x
                     dy = scene.last_mouse_pos[1] - scene.mouse_y
-                    scene.cam_x += dx / scene.lens
-                    scene.cam_y += dy / scene.lens
+                    scene.cam_x += dx / scene.zoom
+                    scene.cam_y += dy / scene.zoom
                     scene.last_mouse_pos = (scene.mouse_x, scene.mouse_y)
         screen.fill("lightgray")
         if not pause:
-            scene.move_drones(2 / fps)
+            scene.move_drones(t / fps)
         scene.draw_map(scale)
-        t_rect = pygame.Rect(3000 - 150, 0, 150, 40)
         pygame.draw.rect(screen, "black", t_rect)
         text = font.render(f"Turns: {scene.turn + 1}", True, "white")
         if pause is True:
-            screen.blit(play_img, (x_img, y_img))
+            screen.blit(play_img, (x_img - button_size[0], y_img))
         else:
-            screen.blit(pause_img, (x_img, y_img))
-        screen.blit(replay_img, (x_img - button_size[0], y_img))
-        screen.blit(text, t_rect)
+            screen.blit(pause_img, (x_img - button_size[0], y_img))
+        screen.blit(replay_img, (x_img - 2 * button_size[0], y_img))
+        screen.blit(ff_img, (x_img, y_img))
+        screen.blit(sd_img, (x_img - 3 * button_size[0], y_img))
+        screen.blit(text, text_rect)
         pygame.display.update()
         clock.tick(fps)
     pygame.quit()
