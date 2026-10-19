@@ -14,6 +14,7 @@ Plan:
 
 
 def rainbow() -> Callable[[float], pygame.Color]:
+    """Rotate color hue if hub color is 'rainbow'"""
     h = .0
 
     def rotate(a: float) -> pygame.Color:
@@ -27,12 +28,21 @@ def rainbow() -> Callable[[float], pygame.Color]:
 
 
 class GraphicDrone:
+    """Class for storing the drone that will be rendered by Pygame"""
     def __init__(
         self,
         path: str,
         orders: list[str],
         start: tuple[float, float]
     ) -> None:
+        """
+        Initialize a GraphicDrone class.
+
+        Arguments:
+            path: the path to the drone sprite (faces right).
+            orders: list of mmovements.
+            start: start hub coordinates.
+        """
         self.orig_sprite = pygame.image.load(path)
         self.base_sprite = pygame.transform.smoothscale(
             self.orig_sprite, (100, 100)
@@ -51,6 +61,12 @@ class GraphicDrone:
         self.move_duration_turns = 0
 
     def point_square(self, dx: float, dy: float) -> None:
+        """
+        Face up, down, left or right depending on `dx` and `dy`
+
+        Raises:
+            ArithmeticError: if either `dx` or `dy` are not zero.
+        """
         if dx == 0 and dy == 0:
             raise ArithmeticError(
                 "invalid coordinates for square rotation: "
@@ -83,6 +99,7 @@ class GraphicDrone:
                 self.rotation = 180
 
     def point_to(self, to: tuple[float, float]) -> None:
+        """Make the drone face to `to` logical position"""
         dx = to[0] - self.position[0]
         dy = to[1] - self.position[1]
         if dx == 0 and dy == 0:
@@ -99,6 +116,13 @@ class GraphicDrone:
         to: tuple[float, float],
         duration: float
     ) -> None:
+        """
+        Start a drone translation.
+
+        Arguments:
+            fro: the initial logical position.
+            to: the ending logical position.
+        """
         self.fro = fro
         self.to = to
         self.progress = 0
@@ -107,6 +131,7 @@ class GraphicDrone:
         self.moving = True
 
     def update_move(self, dt: float) -> None:
+        """Make the drone move for a `dt` amount of time"""
         if not self.moving:
             return
         self.progress = min(1., self.progress + dt / self.duration)
@@ -120,6 +145,7 @@ class GraphicDrone:
 
 
 class Scene:
+    """Scene class for rendering the graph and drones."""
     def __init__(
             self,
             screen: pygame.surface.Surface,
@@ -128,6 +154,16 @@ class Scene:
             level: Map,
             solution: dict[int, list[str]]
     ) -> None:
+        """
+        Initialize a `Scene` class
+
+        Arguments:
+            screen: the surface where the graph will be rendered.
+            w: the width.
+            h: the height.
+            level: the MAPF problem.
+            solution: the solution to the `level`.
+        """
         self.surface = screen
         self.map: Map = level
         self.zerozero: tuple[float, float] = (w // 16, h // 2)
@@ -149,7 +185,8 @@ class Scene:
         self.turn: int = 0
         self._rainbow = rainbow()
 
-    def draw_drones(self, scale: float) -> None:
+    def _draw_drones(self, scale: float) -> None:
+        """Render the drones"""
         if self.turn >= len(self.drones[0].steps):
             self.turn = len(self.drones[0].steps) - 1
         for i in range(len(self.drones)):
@@ -178,6 +215,7 @@ class Scene:
             self.surface.blit(sprite, rect)
 
     def draw_map(self, scale: float) -> None:
+        """Render the graph and drones"""
         for edge in self.map.connections:
             hub1 = edge.hub1
             hub2 = edge.hub2
@@ -237,9 +275,10 @@ class Scene:
                 radius,
                 max(1, int(2 * self.zoom))
             )
-        self.draw_drones(scale)
+        self._draw_drones(scale)
 
     def move_drones(self, dt: float) -> None:
+        """Move the drones for a `dt` amount of time"""
         if self.turn >= len(self.drones[0].steps):
             return
         for drone in self.drones:
@@ -292,6 +331,7 @@ class Scene:
             self.turn += 1
 
     def restart(self) -> None:
+        """Set the drones to their initial state"""
         for drone in self.drones:
             drone.position = self.map.start_hub.position
             drone.rotation = 0
@@ -311,12 +351,23 @@ def draw_map(
     scale: int,
     resolution: tuple[int, int] = (640, 480)
 ) -> None:
+    """
+    Render the Pygame window with the MAPF solution animation.
+
+    Arguments:
+        level: the MAPF probem.
+        solution: the solution to `level`.
+        scale: how big will the hubs, connections and drone sprites.
+        resolution: the screen resolution.
+    """
+    # Initialize the Pygame window
     pygame.init()
     pygame.display.set_caption("Fly-in")
     drone_surface = pygame.image.load("graphics/drone1.png")
     pygame.display.set_icon(drone_surface)
     screen = pygame.display.set_mode(resolution)
     w, h = resolution
+    # Initialize the scene and the buttons images and rectangles
     scene = Scene(screen, w, h, level, solution)
     play_img = pygame.image.load("graphics/play.png")
     pause_img = pygame.image.load("graphics/pause.png")
@@ -339,6 +390,7 @@ def draw_map(
         x_img - 3 * button_size[0] - 1,
         y_img, button_size[0], button_size[1]
     )
+    # Time and text
     t = 2.
     t_rect = pygame.Rect(w - 150, 0, 150, 40)
     text_rect = pygame.Rect(w - 130, 10, 130, 20)
@@ -347,10 +399,13 @@ def draw_map(
     pause = True
     running = True
     fps = 60
+    # Event loop
     while running:
         for event in pygame.event.get():
+            # Close the window
             if event.type == pygame.QUIT:
                 running = False
+            # Zoom
             elif event.type == pygame.MOUSEWHEEL:
                 scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
                 scene.world_x = scene.cam_x + scene.mouse_x / scene.zoom
@@ -362,6 +417,7 @@ def draw_map(
                 scene.zoom = max(.2, min(scene.zoom, 5.))
                 scene.cam_x = scene.world_x - scene.mouse_x / scene.zoom
                 scene.cam_y = scene.world_y - scene.mouse_y / scene.zoom
+            # Click
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     if play.collidepoint(event.pos):
@@ -377,9 +433,11 @@ def draw_map(
                     else:
                         scene.drag = True
                         scene.last_mouse_pos = pygame.mouse.get_pos()
+            # Release click
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     scene.drag = False
+            # Pan while clicking
             elif event.type == pygame.MOUSEMOTION:
                 if scene.drag:
                     scene.mouse_x, scene.mouse_y = pygame.mouse.get_pos()
@@ -388,12 +446,15 @@ def draw_map(
                     scene.cam_x += dx / scene.zoom
                     scene.cam_y += dy / scene.zoom
                     scene.last_mouse_pos = (scene.mouse_x, scene.mouse_y)
+        # Render the scene
         screen.fill("lightgray")
         if not pause:
             scene.move_drones(t / fps)
         scene.draw_map(scale)
+        # Render the turn counter
         pygame.draw.rect(screen, "black", t_rect)
         text = font.render(f"Turns: {scene.turn + 1}", True, "white")
+        # Render the buttons
         if pause is True:
             screen.blit(play_img, (x_img - button_size[0], y_img))
         else:

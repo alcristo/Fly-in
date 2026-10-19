@@ -8,6 +8,16 @@ import screeninfo  # type: ignore #import-not-found
 
 
 def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
+    """
+    Parse the solution
+
+    Arguments:
+        solution: the MAPF solution.
+        n:  the number of drones.
+
+    Returns:
+        drone_orders: a time-ordered dictionary with list of moves as values.
+    """
     drone_orders: dict[int, list[str]] = {}
     turn_orders = solution.splitlines()
     for i in range(n):
@@ -28,6 +38,7 @@ def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
 
 
 def menu() -> str:
+    """If no arguments map provided, go to this menu, return map file path"""
     print("\x1b[H\x1b[0J", end="")
     print(rainbow_text("Fly-in"))
     print()
@@ -84,6 +95,7 @@ def menu() -> str:
 
 
 def rainbow_text(text: str) -> str:
+    """Return same string with rotated colors in the characters"""
     rainbow_str: list[str] = []
     reset = "\x1b[0m"
     rainbow_list = [
@@ -103,6 +115,13 @@ def rainbow_text(text: str) -> str:
 
 
 def print_cap_solution(solution: str, map: Map) -> None:
+    """
+    Print solution (+ capacity information) with colors.
+
+    Arguments:
+        solution: the solution to `map`.
+        map: the MAPF problem, for colors.
+    """
     lines = solution.splitlines()
     reset = "\x1b[0m"
     for line in lines:
@@ -156,6 +175,13 @@ def print_cap_solution(solution: str, map: Map) -> None:
 
 
 def print_solution(solution: str, map: Map) -> None:
+    """
+    Print solution with colors.
+
+    Arguments:
+        solution: the solution to `map`.
+        map: the MAPF problem, for colors.
+    """
     lines = solution.splitlines()
     reset = "\x1b[0m"
     for line in lines:
@@ -208,6 +234,7 @@ def print_solution(solution: str, map: Map) -> None:
 
 
 def decap_solution(solution: str) -> str:
+    """Remove capacity info from `solution` for rendering"""
     lines = solution.splitlines()
     final: list[str] = []
     for line in lines:
@@ -220,6 +247,7 @@ def decap_solution(solution: str) -> str:
 
 
 def main() -> None:
+    """Run the program"""
     args = sys.argv.copy()
     print(args)
     args.pop(0)

@@ -166,15 +166,15 @@ class Parser:
             elif line[0] == "start_hub":
                 if len(start_node.keys()):
                     raise ParsingError("more than one start hub in map")
-                start_node = self.parse_zone(line[1], "start_hub", nb_drones)
+                start_node = self._parse_zone(line[1], "start_hub", nb_drones)
             elif line[0] == "end_hub":
                 if len(end_node.keys()):
                     raise ParsingError("more than one end hub in map")
-                end_node = self.parse_zone(line[1], "end_hub", nb_drones)
+                end_node = self._parse_zone(line[1], "end_hub", nb_drones)
             elif line[0] == "hub":
-                nodes.append(self.parse_zone(line[1], "hub"))
+                nodes.append(self._parse_zone(line[1], "hub"))
             elif line[0] == "connection":
-                edges.append(self.parse_edge(line[1], "connection"))
+                edges.append(self._parse_edge(line[1], "connection"))
         if not start_node:
             raise NodeError("start hub not found")
         if not end_node:
@@ -210,7 +210,7 @@ class Parser:
         )
         return map_data
 
-    def parse_zone(
+    def _parse_zone(
         self,
         line: str,
         element: str,
@@ -301,7 +301,7 @@ class Parser:
                 )
         return inst
 
-    def parse_edge(self, line: str, element: str) -> dict[str, str]:
+    def _parse_edge(self, line: str, element: str) -> dict[str, str]:
         """
         Parse a connection
 

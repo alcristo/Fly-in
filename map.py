@@ -7,6 +7,17 @@ import heapq
 
 
 class Map:
+    """
+    Map class for graph storage.
+
+    Arguments:
+        drones: the number of drones in the level.
+        hubs: a vertex dictionary with the names as keys.
+        connections: an edge list to store the links between vertices.
+        start_hub: the vertex where all drones will start.
+        end_hub: the vertex where all drones must go.
+    """
+
     drones: int = 0
     hubs: dict[str, Hub] = {}
     connections: list[Connection] = []
@@ -14,6 +25,17 @@ class Map:
     goal_hub: Hub
 
     def add_hub(self, new: Hub) -> None:
+        """
+        Add new hub to the map.
+
+        Arguments:
+            new: the new vertex to add to the graph.
+
+        Raises:
+            NodeError: if `new` is already in map.
+            AttributeError: if position is already occupied.
+        """
+
         ids = [hub.id for hub in self.hubs.values()]
         if new.id in ids:
             raise NodeError(f"hub {new.id} already in map")
@@ -26,6 +48,16 @@ class Map:
         self.hubs.update({new.id: new})
 
     def add_connection(self, new: Connection) -> None:
+        """
+        Add new connection to the map.
+
+        Arguments:
+            new: the new edge to add to the graph.
+
+        Raises:
+            EdgeError: if connection already in map.
+            AttributeError: if any off the hubs linked by `new` not in map.
+        """
         hubs = (new.hub1, new.hub2)
         map_conns = [(edge.hub1, edge.hub2) for edge in self.connections]
         if hubs in map_conns:
@@ -38,6 +70,19 @@ class Map:
         self.connections.append(new)
 
     def get_connection(self, fro: str, to: str) -> Connection:
+        """
+        Get a connection from two hub names.
+
+        Arguments:
+            fro: the first hub ID.
+            to: the second hub ID.
+
+        Returns:
+            edge: the desired connection.
+
+        Raises:
+            AttributeError: if `fro` and `to` hubs are not connected.
+        """
         for edge in self.connections:
             if edge.hub1.id == fro:
                 if edge.hub2.id == to:
@@ -48,9 +93,11 @@ class Map:
         raise AttributeError(f"connection not in map: {fro}-{to}")
 
     def hub(self, name: str) -> Hub:
+        """Return hub from ID"""
         return self.hubs[name]
 
     def neighbours(self, name: str) -> set[str]:
+        """Return set of hub IDs from a hub ID."""
         self.hubs[name]
         neighs: set[str] = set()
         for edge in self.connections:
@@ -61,6 +108,7 @@ class Map:
         return neighs
 
     def fill_map(self, map_data: MapData) -> None:
+        """Use `map_data` to fill the graph"""
         self.drones = map_data.nb_drones
         self.start_hub = map_data.start_hub
         self.add_hub(map_data.start_hub)
@@ -75,6 +123,7 @@ class Map:
             edge.hub2.connections.append(edge.hub1.id)
 
     def init_h(self) -> None:
+        """Initiate the vertex heuristic values"""
         if self.goal_hub.zone == "blocked":
             raise MapError(
                 "map has no reachable solution from "
@@ -110,24 +159,48 @@ class Map:
 
 
 class Reservations:
-    def __init__(self) -> None:
-        self.vertex_occupancy: dict[int, dict[str, int]] = {}
-        self.edge_occupancy: dict[int, dict[tuple[str, str], int]] = {}
-        # self.transitions: set[tuple[str, str, int]] = set()
+    """
+    Class for storing the occupied vertices and edges at each turn.
+
+    Arguments:
+        vertex_occupancy: A dictionary with time steps as keys and values are
+         dictionaries with hub names as keys and their occupancy as values.
+        edge_occupancy: A dictionary with time steps as keys and values are
+         dictionaries with a tuple of two hub names as keys
+         and their occupancy as values.
+    """
+    vertex_occupancy: dict[int, dict[str, int]] = {}
+    edge_occupancy: dict[int, dict[tuple[str, str], int]] = {}
 
 
 def undirected_edge(u: str, v: str) -> tuple[str, str]:
+    """Return tuple of two strings for Reservation class"""
     return (min((u, v)), max((u, v)))
 
 
 class Drone:
-    def __init__(self, number: int, start: Hub) -> None:
+    """Drone class for storing the drone's movements"""
+    def __init__(self, number: int) -> None:
+        """
+        Initialize a Drone class
+
+        Arguments:
+            id: the drone's ID.
+        """
         self.id = number
         self.plan: list[str] = []
 
 
 class PathNode:
+    """Class for storing the drone's path steps"""
     def __init__(self, new: Hub, fro: Hub | None = None):
+        """
+        Initialize a new path step.
+
+        Arguments:
+            new: the arrival hub.
+            from: if `new` is restricted, the departure hub.
+        """
         self.hub = new
         self.fro: Hub | None = None
         if new.zone == "restricted":
@@ -138,26 +211,31 @@ class PathNode:
         self.next: PathNode | None = None
 
     def __lt__(self, other: PathNode) -> bool:
+        """Method for `PathNode` comparison"""
         if self.g < other.g:
             return True
         return False
 
     def __le__(self, other: PathNode) -> bool:
+        """Method for `PathNode` comparison"""
         if self.g <= other.g:
             return True
         return False
 
     def __gt__(self, other: PathNode) -> bool:
+        """Method for `PathNode` comparison"""
         if self.g > other.g:
             return True
         return False
 
     def __ge__(self, other: PathNode) -> bool:
+        """Method for `PathNode` comparison"""
         if self.g >= other.g:
             return True
         return False
 
     def previous_hub(self) -> Hub:
+        """Return previous hub from current"""
         current = self.hub.id
         node = self.next
         while node:
@@ -167,6 +245,7 @@ class PathNode:
         return self.hub
 
     def hub_in_path(self) -> bool:
+        """Return whether current hub is in path"""
         if None in (self, self.next):
             return False
         name = self.hub.id
@@ -183,6 +262,7 @@ class PathNode:
 
     @staticmethod
     def node_in_set(name: str, turn: int, set: set[tuple[str, int]]) -> bool:
+        """Return whether a node with hub ID `name` is in `set` at `turn`"""
         for node, t in set:
             if node == name and t == turn:
                 return True
@@ -190,6 +270,7 @@ class PathNode:
 
     @staticmethod
     def node_in_heap(name: str, heap: list[Any]) -> bool:
+        """Return whether a node with hub ID `name` is in `heap`"""
         for node in heap:
             if node[1].hub.id == name:
                 return True
@@ -197,6 +278,7 @@ class PathNode:
 
     @property
     def g(self) -> int:
+        """G score for A* search"""
         return self._g
 
     @g.setter
@@ -206,6 +288,7 @@ class PathNode:
 
     @property
     def h(self) -> float:
+        """H score for A* search"""
         return self._h
 
     @h.setter
@@ -219,17 +302,24 @@ class PathNode:
 
 
 class Algorithm:
+    """Class for MAPF problem solving"""
     def __init__(self, level: Map):
+        """
+        Initiate an `Algorithm` class.
+
+        Arguments:
+            level: the problem to solve as a `Map` class.
+        """
         self.map = level
-        # self.drones = drones
         self.drones: list[Drone] = []
         for i in range(level.drones):
-            self.drones.append(Drone(i + 1, level.start_hub))
+            self.drones.append(Drone(i + 1))
         self.plans: list[list[str]] = []
         self.reservations = Reservations()
         self.turns = 0
 
-    def can_move(self, u: str, v: str, t: int) -> bool:
+    def _can_move(self, u: str, v: str, t: int) -> bool:
+        """Return whether a drone can move from `u` to `v` at turn `t`"""
         if not self.reservations.vertex_occupancy:
             return True
         if not self.reservations.edge_occupancy:
@@ -256,11 +346,10 @@ class Algorithm:
                 return False
         if edge_occ >= edge_cap:
             return False
-        # if (v, u, t) in self.reservations.transitions:
-        #     return False
         return True
 
     def _heuristic(self, node: PathNode) -> None:
+        """Assign H score to `node`"""
         occupancy = self.hub_occupation(node.hub.id, int(node.g))
         node.h = node.hub.heuristic + occupancy / node.hub.capacity
         if node.hub_in_path():
@@ -272,6 +361,7 @@ class Algorithm:
             node.h += inf
 
     def _a_star(self, start: Hub) -> PathNode:
+        """Solve a MAPF problem from `start`"""
         # init open heap and closed set
         opened: list[tuple[float, PathNode]] = []
         closed: set[tuple[str, int]] = set()
@@ -308,7 +398,7 @@ class Algorithm:
                 if PathNode.node_in_set(hub.id, t1, closed):
                     continue
                 # if hub currently occupied, wait
-                if not self.can_move(prev.hub.id, hub.id, t1):
+                if not self._can_move(prev.hub.id, hub.id, t1):
                     node = PathNode(prev.hub)
                     node.next = prev
                     node.g = t1
@@ -365,6 +455,7 @@ class Algorithm:
         return current
 
     def hub_occupation(self, name: str, turn: int) -> int:
+        """Return `name` hub occupation at `turn`"""
         if turn < 1:
             raise ValueError(f"Cannot measure occupation in {name}")
         occupation = 0
@@ -377,6 +468,7 @@ class Algorithm:
         return occupation
 
     def edge_traffic(self, fro: str, to: str, turn: int) -> int:
+        """Return `fro`-`to` link occupation at `turn`"""
         if turn < 1 or fro == to:
             raise ValueError(f"Cannot measure traffic in {fro}-{to}")
         traffic = 0
@@ -389,11 +481,13 @@ class Algorithm:
 
     @staticmethod
     def _add_reservation(dict: dict[Any, int], key: Any) -> None:
+        """Add 1 to `key` key in `dict`"""
         if not dict.get(key):
             dict.update({key: 0})
         dict[key] += 1
 
     def _update_reservations(self, node: PathNode) -> None:
+        """Update reservations variable using `node`"""
         if not self.reservations.vertex_occupancy.get(node.g):
             self.reservations.vertex_occupancy.update({node.g: {}})
         if not self.reservations.edge_occupancy.get(node.g):
@@ -414,6 +508,7 @@ class Algorithm:
             )
 
     def _append_capacity(self, moves: list[str], turn: int) -> None:
+        """If `--capacity-info`, add capacity information to solution"""
         drone_move = moves[-1].split('-')
         if '→' in drone_move[1]:
             travel = drone_move[1].split('→')
@@ -428,6 +523,7 @@ class Algorithm:
         moves[-1] += f"={occ}/{cap}"
 
     def solve(self, cap_info: bool = False) -> str:
+        """Solve the MAPF problem"""
         solution = ""
         instructions: dict[int, list[str]] = {}
         # get the movements for each drone
