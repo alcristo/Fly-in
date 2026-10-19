@@ -305,13 +305,19 @@ class Scene:
         self.turn = 0
 
 
-def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
+def draw_map(
+    level: Map,
+    solution: dict[int, list[str]],
+    scale: int,
+    resolution: tuple[int, int] = (640, 480)
+) -> None:
     pygame.init()
     pygame.display.set_caption("Fly-in")
     drone_surface = pygame.image.load("graphics/drone1.png")
     pygame.display.set_icon(drone_surface)
-    screen = pygame.display.set_mode((1000, 500))
-    scene = Scene(screen, 1000, 500, level, solution)
+    screen = pygame.display.set_mode(resolution)
+    w, h = resolution
+    scene = Scene(screen, w, h, level, solution)
     play_img = pygame.image.load("graphics/play.png")
     pause_img = pygame.image.load("graphics/pause.png")
     replay_img = pygame.image.load("graphics/replay.png")
@@ -334,8 +340,8 @@ def draw_map(level: Map, solution: dict[int, list[str]], scale: int) -> None:
         y_img, button_size[0], button_size[1]
     )
     t = 2.
-    t_rect = pygame.Rect(1000 - 150, 0, 150, 40)
-    text_rect = pygame.Rect(1000 - 130, 10, 130, 20)
+    t_rect = pygame.Rect(w - 150, 0, 150, 40)
+    text_rect = pygame.Rect(w - 130, 10, 130, 20)
     font = pygame.font.Font(None, 32)
     clock = pygame.time.Clock()
     pause = True

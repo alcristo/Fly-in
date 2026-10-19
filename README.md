@@ -1,6 +1,6 @@
 *This project has been created as part of the 42 curriculum by [alcristo](https://github.com/alcristo)*
 
-# Fly-in
+# [Fly-in](https://github.com/alcristo/Fly-in)
 
 ## Description
 
@@ -51,14 +51,18 @@ The visual representation of the solution uses both terminal and Pygame.
 
 In terminal, the solution is printed with the following format:
 
-> Turn 1: D1-{hub1_1} D2-{hub2_1} ...
-> Turn 2: D1-{hub1_2} D2-{hub2_2} ...
-> Turn 3: D1-{hub1_2}→{hub1_3} D2-{hub2_2} ...
-> ...
+```
+D1-{hub1_1} D2-{hub2_1} ...
+D1-{hub1_2} D2-{hub2_2} ...
+D1-{hub1_2}→{hub1_3} D2-{hub2_2} ...
+...
+```
 
 The hub names are represented with their color string according to the Pygame `ColorDict`. If it doesn't exist then it's set to white, except `rainbow`, where the characters rotate colors.
 
 In addition to the terminal, a Pygame window is opened representing the graph with the drone routes. At startup the animation is paused and the drones are at the start hub. The user can pan and zoom the camera for enhanced user experience. To start the animation press the play button. To reset the animation press the replay button, and the pause will then be active even if the animation was in play mode. Fast forward and slow down buttons were also implemented, as well as a turn counter to see the turns while the drones are moving.
+
+This window occupies a quarter of the monitor, whose size is get via the `screeninfo` PyPI module.
 
 ## Instructions
 
@@ -94,7 +98,7 @@ When the project is run, a menu will appear. The user will then enter a number f
 There are ten maps in total:
 
 | Map | Difficulty | Drones | Reference turns | Score | Description |
-| --- | ---------- | ------ | --------------- | ----- | ------ |
+| --- | ---------- | ------ | --------------- | ----- | ----------- |
 | Linear Path | Easy | 2 | 6 | 4 | Simple linear path |
 | Simple Fork | Easy | 4 | 8 | 4 | Simple fork with two paths |
 | Basic Capacity | Easy | 4 | 6 | 4 | Basic capacity management |
@@ -137,6 +141,8 @@ It is recommended to put the connections at the end of the file; otherwise excep
 My [A-Maze-ing](https://github.com/alcristo/A-Maze-ing) project, from where my pathfinding algorithm is based on.
 
 [Pixilart](https://www.pixilart.com/draw), where I drew the drone sprite.
+
+The [screeninfo module](https://pypi.org/project/screeninfo/).
 
 42 for the default maps.
 

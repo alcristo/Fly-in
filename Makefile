@@ -1,10 +1,6 @@
 NAME = main.py
 
-VENV = .venv
-
 PYTHON = python3
-
-ACTIVATE = source .venv/bin/activate
 
 PIP = pip install
 

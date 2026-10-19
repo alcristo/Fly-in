@@ -4,6 +4,7 @@ from map import Map, Algorithm
 from map_draw import draw_map
 import sys
 import pygame
+import screeninfo  # type: ignore #import-not-found
 
 
 def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
@@ -238,6 +239,9 @@ def main() -> None:
         else:
             print("Error: multiple arguments")
             return
+    monitor = screeninfo.get_monitors()[0]
+    screen_size = (monitor.width, monitor.height)
+    resolution: tuple[int, int] = (screen_size[0] // 2, screen_size[1] // 2)
     parser = Parser()
     try:
         data = parser.parse(path)
@@ -262,7 +266,7 @@ def main() -> None:
         print_cap_solution(solution, map)
         solution = decap_solution(solution)
     parsed_sol = parse_solution(solution, map.drones)
-    draw_map(map, parsed_sol, 100)
+    draw_map(map, parsed_sol, 100, resolution)
 
 
 if __name__ == "__main__":
