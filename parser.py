@@ -127,6 +127,8 @@ class Parser:
             raise ParsingError(f"{path}: file not found")
         except PermissionError:
             raise ParsingError(f"{path}: permission denied")
+        if not txt:
+            raise ParsingError(f"{path}: empty file")
         lines = txt.split('\n')
         while "" in lines:
             lines.remove("")
@@ -152,6 +154,13 @@ class Parser:
             if line[0] == "nb_drones":
                 try:
                     nb_drones = int(line[1])
+                    assert nb_drones > 0 and nb_drones < 100
+                except AssertionError:
+                    raise ParsingError(
+                        "invalid number of drones: "
+                        f"{nb_drones}. "
+                        "Number of drones must be in range [1, 99]"
+                    )
                 except ValueError:
                     raise ParsingError(f"invalid number of drones: {line[1]}")
             elif line[0] == "start_hub":
@@ -268,18 +277,15 @@ class Parser:
         if not inst.get("zone"):
             inst.update({"zone": "normal"})
         else:
-            if element == "hub":
-                try:
-                    assert inst["zone"] in (
-                        "normal", "priority", "restricted", "blocked"
-                    )
-                except AssertionError:
-                    raise ParsingError(
-                        f"invalid zone type for {inst['id']}"
-                        f": {inst['zone']}"
-                    )
-            else:
-                inst["zone"] = "normal"
+            try:
+                assert inst["zone"] in (
+                    "normal", "priority", "restricted", "blocked"
+                )
+            except AssertionError:
+                raise ParsingError(
+                    f"invalid zone type for {inst['id']}"
+                    f": {inst['zone']}"
+                )
         if not inst.get("max_drones"):
             if element == "hub":
                 inst.update({"max_drones": "1"})

@@ -75,6 +75,12 @@ class Map:
             edge.hub2.connections.append(edge.hub1.id)
 
     def init_h(self) -> None:
+        if self.goal_hub.zone == "blocked":
+            raise MapError(
+                "map has no reachable solution from "
+                f"{self.start_hub.id} to {self.goal_hub.id} "
+                "(goal is blocked)"
+            )
         open_heap: list[tuple[float, str]] = []
         cl_set: set[str] = set()
         current: str = self.goal_hub.id
