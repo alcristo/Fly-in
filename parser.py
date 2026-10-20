@@ -198,7 +198,12 @@ class Parser:
                 assert self._hub_in_list(edge["hub2"], hubs)
             except AssertionError:
                 raise EdgeError(f"{edge['hub1']} or {edge['hub2']} not in map")
-            connections.append(self._init_connection(edge, hubs))
+            new = self._init_connection(edge, hubs)
+            if new in connections:
+                raise ParsingError(
+                    f"Duplicated connection: {new.hub1.id}-{new.hub2.id}"
+                )
+            connections.append(new)
         hubs.pop(start_hub.id)
         hubs.pop(end_hub.id)
         map_data = MapData(
