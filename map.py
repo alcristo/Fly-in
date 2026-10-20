@@ -507,22 +507,7 @@ class Algorithm:
                 undirected_edge(node.previous_hub().id, node.hub.id)
             )
 
-    def _append_capacity(self, moves: list[str], turn: int) -> None:
-        """If `--capacity-info`, add capacity information to solution"""
-        drone_move = moves[-1].split('-')
-        if '→' in drone_move[1]:
-            travel = drone_move[1].split('→')
-            cap = self.map.get_connection(travel[0], travel[1]).capacity
-            occ = self.reservations.edge_occupancy[turn].get(
-                undirected_edge(travel[0], travel[1])
-            )
-        else:
-            hub = drone_move[1]
-            cap = self.map.hub(hub).capacity
-            occ = self.reservations.vertex_occupancy[turn].get(hub, 0)
-        moves[-1] += f"={occ}/{cap}"
-
-    def solve(self, cap_info: bool = False) -> str:
+    def solve(self) -> str:
         """Solve the MAPF problem"""
         solution = ""
         instructions: dict[int, list[str]] = {}
@@ -546,13 +531,6 @@ class Algorithm:
             self.plans.append(drone.plan)
             instructions.update({drone.id: drone.plan})
         n = max([len(i.plan) for i in self.drones])
-        if cap_info:
-            for drone in self.drones:
-                while len(drone.plan) < n:
-                    self.reservations.vertex_occupancy[
-                        len(drone.plan)
-                    ][self.map.goal_hub.id] += 1
-                    drone.plan.append("--wait--")
         i = 1
         turn: list[str] = []
         remove: list[int] = []
@@ -562,8 +540,6 @@ class Algorithm:
                     # don't print waiting drones
                     if plan[i] != "--wait--":
                         turn.append(f"D{n}-{plan[i]}")
-                        if cap_info:
-                            self._append_capacity(turn, i)
                 except IndexError:
                     # if plan out of range, drone delivered
                     remove.append(n)

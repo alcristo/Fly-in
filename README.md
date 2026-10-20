@@ -79,7 +79,6 @@ The project contains a Makefile with the following rules:
 | ---- | -------------- |
 | install | Install the dependencies |
 | run | Run the project |
-| run-capacity-info | Shows the capacity of the occupied hubs on each turn on terminal |
 | debug | Debug the project with PDB |
 | clean | Remove temporal cache |
 | lint | Execute flake8 and mypy |

@@ -114,66 +114,6 @@ def rainbow_text(text: str) -> str:
     return "".join(rainbow_str)
 
 
-def print_cap_solution(solution: str, map: Map) -> None:
-    """
-    Print solution (+ capacity information) with colors.
-
-    Arguments:
-        solution: the solution to `map`.
-        map: the MAPF problem, for colors.
-    """
-    lines = solution.splitlines()
-    reset = "\x1b[0m"
-    for line in lines:
-        turn = line.split(': ')[1].split(' ')
-        colorline: list[str] = []
-        for inst in turn:
-            order = inst.split('-')
-            cap = order[1].split('=')
-            cline: list[str] = []
-            if '→' in cap[0]:
-                ids = cap[0].split('→')
-                fro = map.hub(ids[0])
-                to = map.hub(ids[1])
-                if fro.color == "rainbow":
-                    cline.append(rainbow_text(ids[0]))
-                else:
-                    try:
-                        c1 = pygame.Color(fro.color)
-                    except pygame.error:
-                        c1 = pygame.Color("white")
-                    color1 = (c1.r, c1.g, c1.b)
-                    form1 = f"\x1b[38;2;{color1[0]};{color1[1]};{color1[2]}m"
-                    cline.append(f"{form1}{ids[0]}{reset}")
-                if to.color == "rainbow":
-                    cline.append(rainbow_text(ids[1]))
-                else:
-                    try:
-                        c2 = pygame.Color(to.color)
-                    except pygame.error:
-                        c2 = pygame.Color("white")
-                    color2 = (c2.r, c2.g, c2.b)
-                    form2 = f"\x1b[38;2;{color2[0]};{color2[1]};{color2[2]}m"
-                    cline.append(f"{form2}{ids[1]}{reset}")
-                    colorline.append(
-                        f"{order[0]}-"
-                        f"{cline[0]}→{cline[1]}"
-                    )
-            else:
-                hub = map.hub(cap[0])
-                if hub.color == "rainbow":
-                    colorline.append(f"{order[0]}-{rainbow_text(order[1])}")
-                else:
-                    try:
-                        c = pygame.Color(hub.color)
-                    except pygame.error:
-                        c = pygame.Color("white")
-                    color = (c.r, c.g, c.b)
-                    form = f"\x1b[38;2;{color[0]};{color[1]};{color[2]}m"
-                    colorline.append(f"{order[0]}-{form}{order[1]}{reset}")
-        print(' '.join(colorline))
-
-
 def print_solution(solution: str, map: Map) -> None:
     """
     Print solution with colors.
@@ -233,19 +173,6 @@ def print_solution(solution: str, map: Map) -> None:
         print(' '.join(colorline))
 
 
-def decap_solution(solution: str) -> str:
-    """Remove capacity info from `solution` for rendering"""
-    lines = solution.splitlines()
-    final: list[str] = []
-    for line in lines:
-        turn = line.split(' ')
-        turn_line: list[str] = []
-        for drone in turn:
-            turn_line.append(drone.split('=')[0])
-        final.append(' '.join(turn_line))
-    return '\n'.join(final)
-
-
 def main() -> None:
     """Run the program"""
     args = sys.argv.copy()
@@ -286,13 +213,12 @@ def main() -> None:
     map.fill_map(data)
     map.init_h()
     algo = Algorithm(map)
-    solution = algo.solve(cap)
+    solution = algo.solve()
     print()
     if not cap:
         print_solution(solution, map)
     else:
         print_cap_solution(solution, map)
-        solution = decap_solution(solution)
     parsed_sol = parse_solution(solution, map.drones)
     draw_map(map, parsed_sol, 100, resolution)
 
