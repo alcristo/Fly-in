@@ -4,7 +4,7 @@ from map import Map, Algorithm
 from map_draw import draw_map
 import sys
 import pygame
-import screeninfo  # type: ignore #import-not-found
+import screeninfo  # noqa
 
 
 def parse_solution(solution: str, n: int) -> dict[int, list[str]]:
@@ -114,6 +114,33 @@ def rainbow_text(text: str) -> str:
     return "".join(rainbow_str)
 
 
+def color_hub(name: str, map: Map) -> str:
+    """
+    Format a hub ID with its color.
+
+    Arguments:
+        name: the hub ID.
+        map: the graph map.
+
+    Returns:
+        color_text: the colored hub name 
+            (defaults to white if color not in Pygame `ColorDict`)
+    """
+    reset = "\x1b[0m"
+    color_name = map.hub(name).color
+    try:
+        color = pygame.Color(color_name)
+    except pygame.error:
+        if color_name == "rainbow":
+            return rainbow_text(name)
+        else:
+            color = pygame.Color("white")
+    rgb = (color.r, color.g, color.b)
+    ansi = f"\x1b[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
+    color_text = f"{ansi}{name}{reset}"
+    return color_text
+
+
 def print_solution(solution: str, map: Map) -> None:
     """
     Print solution with colors.
@@ -132,65 +159,24 @@ def print_solution(solution: str, map: Map) -> None:
             cline: list[str] = []
             if '→' in order[1]:
                 ids = order[1].split('→')
-                fro = map.hub(ids[0])
-                to = map.hub(ids[1])
-                if fro.color == "rainbow":
-                    cline.append(rainbow_text(ids[0]))
-                else:
-                    try:
-                        c1 = pygame.Color(fro.color)
-                    except pygame.error:
-                        c1 = pygame.Color("white")
-                    color1 = (c1.r, c1.g, c1.b)
-                    form1 = f"\x1b[38;2;{color1[0]};{color1[1]};{color1[2]}m"
-                    cline.append(f"{form1}{ids[0]}{reset}")
-                if to.color == "rainbow":
-                    cline.append(rainbow_text(ids[1]))
-                else:
-                    try:
-                        c2 = pygame.Color(to.color)
-                    except pygame.error:
-                        c2 = pygame.Color("white")
-                    color2 = (c2.r, c2.g, c2.b)
-                    form2 = f"\x1b[38;2;{color2[0]};{color2[1]};{color2[2]}m"
-                    cline.append(f"{form2}{ids[1]}{reset}")
-                    colorline.append(
-                        f"{order[0]}-"
-                        f"{cline[0]}→{cline[1]}"
-                    )
+                colorline.append(
+                    f"{order[0]}-"
+                    f"{color_hub(ids[0], map)}→{color_hub(ids[1], map)}"
+                )
             else:
-                hub = map.hub(order[1])
-                if hub.color == "rainbow":
-                    colorline.append(f"{order[0]}-{rainbow_text(order[1])}")
-                else:
-                    try:
-                        c = pygame.Color(hub.color)
-                    except pygame.error:
-                        c = pygame.Color("white")
-                    color = (c.r, c.g, c.b)
-                    form = f"\x1b[38;2;{color[0]};{color[1]};{color[2]}m"
-                    colorline.append(f"{order[0]}-{form}{order[1]}{reset}")
+                colorline.append(f"{order[0]}-{color_hub(order[1], map)}")
         print(' '.join(colorline))
 
 
 def main() -> None:
     """Run the program"""
     args = sys.argv.copy()
-    print(args)
     args.pop(0)
-    print(args)
-    cap = False
     if not args:
         path = menu()
     else:
-        if "--capacity-info" in args:
-            cap = True
-            args.remove("--capacity-info")
-        print(args)
         if len(args) == 1:
             path = args[0]
-        elif not len(args):
-            path = menu()
         else:
             print("Error: multiple arguments")
             return
@@ -215,10 +201,7 @@ def main() -> None:
     algo = Algorithm(map)
     solution = algo.solve()
     print()
-    if not cap:
-        print_solution(solution, map)
-    else:
-        print_cap_solution(solution, map)
+    print_solution(solution, map)
     parsed_sol = parse_solution(solution, map.drones)
     draw_map(map, parsed_sol, 100, resolution)
 
@@ -232,3 +215,5 @@ if __name__ == "__main__":
         pass
     except EOFError:
         pass
+    except BaseException as e:
+        print(e)
