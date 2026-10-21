@@ -130,7 +130,7 @@ def color_hub(name: str, map: Map) -> str:
     color_name = map.hub(name).color
     try:
         color = pygame.Color(color_name)
-    except pygame.error:
+    except ValueError:
         if color_name == "rainbow":
             return rainbow_text(name)
         else:

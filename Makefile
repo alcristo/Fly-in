@@ -23,27 +23,21 @@ LINT = flake8 $(SOURCES) && mypy $(SOURCES)
 
 
 install:
-	$(PIP) $(REQUIREMENTS)
+	uv sync
 
-run:
-	$(PYTHON) $(NAME) $(filter-out $@,$(MAKECMDGOALS))
+run: install
+	uv run $(NAME)
 
-run-capacity-info:
-	$(PYTHON) $(NAME) --capacity-info $(filter-out $@,$(MAKECMDGOALS))
-
-%:
-	@:
-
-debug:
+debug: install
 	$(PYTHON) -m pdb $(NAME) $(CONFIG)
 
 clean:
 	$(RM) $(CACHE)
 
-lint:
+lint: install
 	$(LINT) --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
-lint-strict:
+lint-strict: install
 	$(LINT) --strict
 
 .PHONY: install run debug clean lint lint-strict
