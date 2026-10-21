@@ -123,8 +123,8 @@ def color_hub(name: str, map: Map) -> str:
         map: the graph map.
 
     Returns:
-        color_text: the colored hub name 
-            (defaults to white if color not in Pygame `ColorDict`)
+        color_text: the colored hub name
+             (defaults to white if color not in Pygame `ColorDict`)
     """
     reset = "\x1b[0m"
     color_name = map.hub(name).color
@@ -150,13 +150,11 @@ def print_solution(solution: str, map: Map) -> None:
         map: the MAPF problem, for colors.
     """
     lines = solution.splitlines()
-    reset = "\x1b[0m"
     for line in lines:
         turn = line.split(': ')[1].split(' ')
         colorline: list[str] = []
         for inst in turn:
             order = inst.split('-')
-            cline: list[str] = []
             if '→' in order[1]:
                 ids = order[1].split('→')
                 colorline.append(
@@ -193,7 +191,7 @@ def main() -> None:
         print(f"Caught ValueError: {e.__str__()}")
         return
     except Exception as e:
-        print(f"Caught Exception: {e}")
+        print(f"Caught Exception: {e.__str__()}")
         return
     map = Map()
     map.fill_map(data)
