@@ -317,6 +317,7 @@ class Algorithm:
         self.plans: list[list[str]] = []
         self.reservations = Reservations()
         self.turns = 0
+        self.delivered = 0
 
     def _can_move(self, u: str, v: str, t: int) -> bool:
         """Return whether a drone can move from `u` to `v` at turn `t`"""
@@ -372,6 +373,7 @@ class Algorithm:
 
     def _a_star(self, start: Hub) -> PathNode:
         """Solve a MAPF problem from `start`"""
+
         # init open heap and closed set
         opened: list[tuple[float, PathNode]] = []
         closed: set[tuple[str, int]] = set()
@@ -381,15 +383,17 @@ class Algorithm:
         g_list: dict[tuple[str, int], float] = {}
         f_list: dict[tuple[str, int], float] = {}
         t = 0
-        # g = 0
+
         # while nodes in open heap
         while len(opened):
             current = heapq.heappop(opened)[1]
             t = int(current.g)
             closed.add((current.hub.id, t))
+
             # if current is goal, exit
             if current.hub.id == self.map.goal_hub.id:
                 return current
+
             # check neighbours
             for neighbour in self.map.neighbours(current.hub.id):
                 prev = current
@@ -407,21 +411,15 @@ class Algorithm:
                     continue
                 if PathNode.node_in_set(hub.id, t1, closed):
                     continue
-                # if hub currently occupied, wait
-                """if not self._can_move(prev.hub.id, hub.id, t1):
-                    node = PathNode(prev.hub)
-                    node.next = prev
-                    node.g = t1
-                    node.h = prev.h
-                    prev = node
-                    heapq.heappush(opened, (node.f, node))
-                    continue"""
+
+                # if drone can't move, check reservations
                 if not self._can_move(prev.hub.id, hub.id, t1):
                     current_hub = prev.hub
                     cap = current_hub.capacity
                     occ = self.reservations.vertex_occupancy.get(
                         t1, {}
                     ).get(current_hub.id, 0)
+                    # if hub currently occupied, wait
                     if occ < cap:
                         node = PathNode(prev.hub)
                         node.next = prev
@@ -429,6 +427,7 @@ class Algorithm:
                         node.h = prev.h
                         heapq.heappush(opened, (node.f, node))
                     continue
+
                 # if restricted neighbour, occupy link
                 elif hub.zone == "restricted":
                     r_node = PathNode(hub, prev.hub)
@@ -443,6 +442,7 @@ class Algorithm:
                     node.g = t1
                 if not g_list.get((hub.id, node.g)):
                     g_list.update({(hub.id, node.g): node.g})
+
                 # compute heuristics
                 if node.hub == self.map.start_hub:
                     continue
@@ -452,6 +452,7 @@ class Algorithm:
                     self._heuristic(node)
                 if not f_list.get((hub.id, t1)):
                     f_list.update({(hub.id, t1): node.g + node.h})
+
                 # if shorter distance from start, update g
                 if node.g < g_list.get((node.hub.id, t1), inf):
                     g_list.update({(node.hub.id, t1): node.g})
@@ -460,6 +461,7 @@ class Algorithm:
                     ] + node.h})
                 else:
                     continue
+
                 # if better f cost, update
                 if node.f < f_list.get(
                     (node.hub.id, node.g), inf
@@ -469,6 +471,7 @@ class Algorithm:
                     f_list.update({(node.hub.id, node.g): node.f})
                     if not node.node_in_heap(hub.id, opened):
                         heapq.heappush(opened, (node.f, node))
+
         # if current hub is not goal, map has no solution
         if current.hub != self.map.goal_hub:
             raise MapError(
@@ -520,28 +523,23 @@ class Algorithm:
         if turn not in edge_turn:
             edge_turn[turn] = {}
 
-        # Restricted-hub edge phase:
-        # reserve the incoming edge, but not the hub.
+        # in connection toward restricted hub
         if node.fro is not None:
             edge = undirected_edge(node.fro.id, node.hub.id)
             self._add_reservation(edge_turn[turn], edge)
             return
 
-        # This node represents occupancy of its hub.
+        # hub occupancy
         if node.hub.id == goal.id:
-            deliv = sum(
-                res.get(goal.id, 0) != 0
-                for t, res in vertex_turn.items() if t < turn
-            )
-            vertex_turn[turn][goal.id] = deliv + 1
+            self.delivered += 1
+            vertex_turn[turn][goal.id] = self.delivered
         else:
             self._add_reservation(
                 vertex_turn[turn], node.hub.id
             )
-        # Reserve an edge only when this node represents an actual
-        # transition from a different hub at the previous time step.
-        previous = node.next
 
+        # reserve edge if not waiting
+        previous = node.next
         if previous is not None and previous.hub.id != node.hub.id:
             edge = undirected_edge(
                 previous.hub.id, node.hub.id
@@ -552,6 +550,7 @@ class Algorithm:
         """Solve the MAPF problem"""
         solution = ""
         instructions: dict[int, list[str]] = {}
+
         # get the movements for each drone
         for drone in self.drones:
             path: PathNode | None = self._a_star(self.map.start_hub)
@@ -567,6 +566,7 @@ class Algorithm:
                     drone.plan.append(path.hub.id)
                 self._update_reservations(path, self.map.goal_hub)
                 path = path.next
+
             # reverse the path to make it time-direct
             drone.plan.reverse()
             self.plans.append(drone.plan)
@@ -584,14 +584,17 @@ class Algorithm:
                 except IndexError:
                     # if plan out of range, drone delivered
                     remove.append(n)
+
             # remove delivered drones
             for n in remove:
                 instructions.pop(n)
                 if not len(instructions):
                     return solution
+
             # join dornes plans; newline means next turn
             move = " ".join(turn)
             solution += f"Turn {i}: " + move + "\n"
+
             # next turn
             i += 1
             turn.clear()
