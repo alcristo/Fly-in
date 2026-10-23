@@ -360,6 +360,7 @@ def draw_map(
         scale: how big will the hubs, connections and drone sprites.
         resolution: the screen resolution.
     """
+
     # Initialize the Pygame window
     pygame.init()
     pygame.display.set_caption("Fly-in")
@@ -367,6 +368,7 @@ def draw_map(
     pygame.display.set_icon(drone_surface)
     screen = pygame.display.set_mode(resolution)
     w, h = resolution
+
     # Initialize the scene and the buttons images and rectangles
     scene = Scene(screen, w, h, level, solution)
     play_img = pygame.image.load("graphics/play.png")
@@ -390,6 +392,7 @@ def draw_map(
         x_img - 3 * button_size[0] - 1,
         y_img, button_size[0], button_size[1]
     )
+
     # Time and text
     t = 2.
     t_rect = pygame.Rect(w - 150, 0, 150, 40)
@@ -399,6 +402,7 @@ def draw_map(
     pause = True
     running = True
     fps = 60
+
     # Event loop
     while running:
         for event in pygame.event.get():

@@ -333,7 +333,6 @@ class Parser:
             raise ParsingError(f"invalid line: {element}: {line}")
         while "" in metadata:
             metadata.remove("")
-        # inst.update({"id": metadata[0]})
         hubs = metadata[0].split('-')
         if len(hubs) != 2:
             raise ParsingError(f"invalid connection: {metadata[0]}")

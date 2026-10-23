@@ -1,4 +1,3 @@
-# from .pygame_test import rainbow
 import pygame
 from pydantic import BaseModel, Field, model_validator
 from exceptions import NodeError, EdgeError, MapError

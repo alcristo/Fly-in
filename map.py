@@ -349,14 +349,6 @@ class Algorithm:
         else:
             if to_occ >= to_cap:
                 return False
-        """if to_occ >= to_cap:
-            if to.zone == "restricted":
-                if self.reservations.vertex_occupancy.get(
-                    t + 1, {}
-                ).get(v, 0) >= to_cap:
-                    return False
-            else:
-                return False"""
         return True
 
     def _heuristic(self, node: PathNode) -> None:
