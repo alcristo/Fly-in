@@ -331,21 +331,29 @@ class Algorithm:
             to_cap = self.map.drones
         else:
             to_cap = to.capacity
-        to_occ = self.reservations.vertex_occupancy.get(t, {}).get(v, 0)
+        edge = undirected_edge(u, v)
         edge_cap = self.map.get_connection(u, v).capacity
-        edge_occ = self.reservations.edge_occupancy.get(t, {}).get(
-            undirected_edge(u, v), 0
-        )
-        if to_occ >= to_cap:
+        edge_occ = self.reservations.edge_occupancy.get(t, {}).get(edge, 0)
+        if edge_occ >= edge_cap:
+            return False
+        t_arr = t + 1 if to.zone == "restricted" else t
+        to_occ = self.reservations.vertex_occupancy.get(t_arr, {}).get(v, 0)
+        if to.zone == "restricted":
+            for check_turn in (t, t + 1):
+                to_occ = self.reservations.vertex_occupancy.get(check_turn, {}).get(v, 0)
+                if to_occ >= to_cap:
+                    return False
+        else:
+            if to_occ >= to_cap:
+                return False
+        """if to_occ >= to_cap:
             if to.zone == "restricted":
                 if self.reservations.vertex_occupancy.get(
                     t + 1, {}
                 ).get(v, 0) >= to_cap:
                     return False
             else:
-                return False
-        if edge_occ >= edge_cap:
-            return False
+                return False"""
         return True
 
     def _heuristic(self, node: PathNode) -> None:
@@ -398,13 +406,24 @@ class Algorithm:
                 if PathNode.node_in_set(hub.id, t1, closed):
                     continue
                 # if hub currently occupied, wait
-                if not self._can_move(prev.hub.id, hub.id, t1):
+                """if not self._can_move(prev.hub.id, hub.id, t1):
                     node = PathNode(prev.hub)
                     node.next = prev
                     node.g = t1
                     node.h = prev.h
                     prev = node
                     heapq.heappush(opened, (node.f, node))
+                    continue"""
+                if not self._can_move(prev.hub.id, hub.id, t1):
+                    current_hub = prev.hub
+                    cap = current_hub.capacity
+                    occ = self.reservations.vertex_occupancy.get(t1,{}).get(current_hub.id, 0)
+                    if occ < cap:
+                        node = PathNode(prev.hub)
+                        node.next = prev
+                        node.g = t1
+                        node.h = prev.h
+                        heapq.heappush(opened, (node.f, node))
                     continue
                 # if restricted neighbour, occupy link
                 elif hub.zone == "restricted":
@@ -482,30 +501,48 @@ class Algorithm:
     @staticmethod
     def _add_reservation(dict: dict[Any, int], key: Any) -> None:
         """Add 1 to `key` key in `dict`"""
-        if not dict.get(key):
-            dict.update({key: 0})
-        dict[key] += 1
+        dict[key] = dict.get(key, 0) + 1
 
-    def _update_reservations(self, node: PathNode) -> None:
-        """Update reservations variable using `node`"""
-        if not self.reservations.vertex_occupancy.get(node.g):
-            self.reservations.vertex_occupancy.update({node.g: {}})
-        if not self.reservations.edge_occupancy.get(node.g):
-            self.reservations.edge_occupancy.update({node.g: {}})
-        if node.fro:
-            self._add_reservation(
-                self.reservations.edge_occupancy[node.g],
-                undirected_edge(node.fro.id, node.hub.id)
+    def _update_reservations(self, node: PathNode, goal: Hub) -> None:
+        """Update reservations for a single path node."""
+        turn = node.g
+
+        vertex_turn = self.reservations.vertex_occupancy
+        edge_turn = self.reservations.edge_occupancy
+
+        if turn not in vertex_turn:
+            vertex_turn[turn] = {}
+
+        if turn not in edge_turn:
+            edge_turn[turn] = {}
+
+        # Restricted-hub edge phase:
+        # reserve the incoming edge, but not the hub.
+        if node.fro is not None:
+            edge = undirected_edge(node.fro.id, node.hub.id)
+            self._add_reservation(edge_turn[turn], edge)
+            return
+
+        # This node represents occupancy of its hub.
+        if node.hub.id == goal.id:
+            deliv = sum(
+                res.get(goal.id, 0) != 0
+                for t, res in vertex_turn.items() if t < turn
             )
+            vertex_turn[turn][goal.id] = deliv + 1
         else:
-            if not node.fro:
-                self._add_reservation(
-                    self.reservations.vertex_occupancy[node.g], node.hub.id
-                )
             self._add_reservation(
-                self.reservations.edge_occupancy[node.g],
-                undirected_edge(node.previous_hub().id, node.hub.id)
+                vertex_turn[turn], node.hub.id
             )
+        # Reserve an edge only when this node represents an actual
+        # transition from a different hub at the previous time step.
+        previous = node.next
+
+        if previous is not None and previous.hub.id != node.hub.id:
+            edge = undirected_edge(
+                previous.hub.id, node.hub.id
+            )
+            self._add_reservation(edge_turn[turn], edge)
 
     def solve(self) -> str:
         """Solve the MAPF problem"""
@@ -524,7 +561,7 @@ class Algorithm:
                     drone.plan.insert(-1, "--wait--")
                 else:
                     drone.plan.append(path.hub.id)
-                self._update_reservations(path)
+                self._update_reservations(path, self.map.goal_hub)
                 path = path.next
             # reverse the path to make it time-direct
             drone.plan.reverse()
