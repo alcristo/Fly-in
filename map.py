@@ -340,7 +340,9 @@ class Algorithm:
         to_occ = self.reservations.vertex_occupancy.get(t_arr, {}).get(v, 0)
         if to.zone == "restricted":
             for check_turn in (t, t + 1):
-                to_occ = self.reservations.vertex_occupancy.get(check_turn, {}).get(v, 0)
+                to_occ = self.reservations.vertex_occupancy.get(
+                    check_turn, {}
+                ).get(v, 0)
                 if to_occ >= to_cap:
                     return False
         else:
@@ -417,7 +419,9 @@ class Algorithm:
                 if not self._can_move(prev.hub.id, hub.id, t1):
                     current_hub = prev.hub
                     cap = current_hub.capacity
-                    occ = self.reservations.vertex_occupancy.get(t1,{}).get(current_hub.id, 0)
+                    occ = self.reservations.vertex_occupancy.get(
+                        t1, {}
+                    ).get(current_hub.id, 0)
                     if occ < cap:
                         node = PathNode(prev.hub)
                         node.next = prev
