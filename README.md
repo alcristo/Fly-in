@@ -115,7 +115,7 @@ To create a custom map, a text file will suffice. However, it must have the foll
 
 ```
 # Comments (with hash marks as first character) are ignored at parsing, as well as empty lines
-# n > 0; must be first line
+# nb_drones must be first line; n > 0
 nb_drones: n
 # M > 0; x: int, y: int; only 1 start_hub
 start_hub: start_name x y [color=any zone=any max_drones=M]
@@ -130,6 +130,10 @@ connection: hub1-hub2 [metadata=any]
 ```
 
 It is recommended to put the connections at the end of the file; otherwise exceptions may arise. Invalid values for valid metadata types will raise exceptions. Invalid metadata types will be ignored.
+
+### Invalid maps
+
+This project also has a sample of invalid maps in the `maps/not_valid` directory. Each of these maps allows to verify the parser behavior to invalid maps, so the program exits safely or continues running with default metadata.
 
 ## Resources
 
