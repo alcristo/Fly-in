@@ -78,7 +78,7 @@ The project contains a Makefile with the following rules:
 | Rule | Description |
 | ---- | -------------- |
 | install | Install the dependencies |
-| run | Run the project |
+| run | Run the project. If arguments required, define ARGS |
 | debug | Debug the project with PDB |
 | clean | Remove temporal cache |
 | lint | Execute flake8 and mypy |
@@ -89,6 +89,14 @@ To execute any of the rules run:
 ```bash
 make <rule>
 ```
+
+To run the project with arguments, run:
+
+```bash
+make run ARGS=[map_path]
+```
+
+The only valid argument of ARGS will be the path to the map file. Not found or forbidden files will exit the program.
 
 When the project is run, a menu will appear. The user will then enter a number from 1 to 10 to select a default pathfinding map. The user can also make their own map and enter the route to the map file.
 
@@ -133,7 +141,17 @@ It is recommended to put the connections at the end of the file; otherwise excep
 
 ### Invalid maps
 
-This project also has a sample of invalid maps in the `maps/not_valid` directory. Each of these maps allows to verify the parser behavior to invalid maps, so the program exits safely or continues running with default metadata.
+This project also has a sample of invalid maps in the `maps/not_valid` directory. Each of these maps allows to verify the parser behavior to invalid maps, so the program exits safely or continues running with default metadata. Due to issues with git, to test a forbidden file run:
+
+```bash
+chmod 000 maps/not_valid/24_forbidden.txt
+```
+
+If you have problems erasing it later, run:
+
+```bash
+chmod 644 maps/not_valid/24_forbidden.txt
+```
 
 ## Resources
 

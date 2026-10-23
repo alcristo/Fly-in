@@ -2,10 +2,6 @@ NAME = main.py
 
 PYTHON = python3
 
-PIP = pip install
-
-REQUIREMENTS = -r requirements.txt
-
 SOURCES =	main.py \
 			exceptions.py \
 			models.py \
@@ -26,10 +22,10 @@ install:
 	uv sync
 
 run: install
-	uv run $(NAME)
+	uv run $(NAME) $(ARGS)
 
 debug: install
-	$(PYTHON) -m pdb $(NAME) $(CONFIG)
+	$(PYTHON) -m pdb $(NAME) $(ARGS)
 
 clean:
 	$(RM) $(CACHE)
